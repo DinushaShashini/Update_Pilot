@@ -30,3 +30,27 @@ If script execution is restricted on your system by execution policies, run with
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\check_environment.ps1
 ```
+
+---
+
+## `winget_probe.py`
+
+A safe Python diagnostic probe that queries `winget list` and `winget upgrade` using explicit argument lists (no `shell=True`) with a configurable timeout.
+
+### Capabilities:
+- **Injection-Safe Execution**: Uses `subprocess.run(["winget", ...], shell=False)` with argument arrays.
+- **Robust Column-Offset Parsing**: Parses fixed-column terminal output based on column boundaries, correctly handling multi-word application names, missing IDs, and unmanaged apps.
+- **Exit Code Translation**: Handles non-zero return codes like `0x8A15002B` (no applications found / fully up to date) as clean states rather than crashes.
+- **Structured JSON Output**: Emits JSON with `name`, `id`, `version`, `available_version`, `source`, and captured diagnostics.
+
+### Usage:
+
+```bash
+python tools/winget_probe.py [timeout_seconds]
+```
+
+Example:
+```bash
+python tools/winget_probe.py 20
+```
+
