@@ -169,3 +169,32 @@ UpdatePilot provides centralized visibility and controlled management of Windows
 - **Success Result**: The device is marked `REVOKED` or removed from active devices on the dashboard, and the agent stops communicating.
 - **Failure Result**:
   - *Device not found or not owned by user*: Backend responds with `404 Not Found` or `403 Forbidden`; no changes are made.
+
+---
+
+## 4. Requirements Checklist
+
+| ID | Requirement | Type | Source in Proposal | Priority |
+| :--- | :--- | :--- | :--- | :--- |
+| **FR-01** | User registration, login, and JWT-based session management | Functional | Proposal / Core Specs | High |
+| **FR-02** | Device onboarding via secure one-time pairing token (1:1 user-device binding) | Functional | Proposal / Core Specs | High |
+| **FR-03** | Read-only scan of installed applications on Windows host via WinGet | Functional | Proposal / Core Specs | High |
+| **FR-04** | Detection and version diff calculation of available software updates | Functional | Proposal / Core Specs | High |
+| **FR-05** | Secure transmission of discovered inventory and updates to backend | Functional | Proposal / Core Specs | High |
+| **FR-06** | Explicit user approval gate; no update can execute without user approval | Functional | Proposal / Non-Negotiables | **Critical** |
+| **FR-07** | Controlled execution: agent applies `winget upgrade` only for verified approved updates | Functional | Proposal / Non-Negotiables | **Critical** |
+| **FR-08** | Real-time reporting of update execution outcome (success/failure exit code & logs) | Functional | Proposal / Core Specs | High |
+| **FR-09** | Immutable audit logging of scans, approvals, rejections, and execution history | Functional | Proposal / Core Specs | High |
+| **FR-10** | Device revocation and token invalidation to decommission paired agents | Functional | Proposal / Core Specs | Medium |
+| **NFR-01** | **Zero Plaintext Secrets**: Hash passwords (bcrypt/Argon2) and tokens; no plaintext storage | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-02** | **Strict Input Validation**: Validate all API payloads and inputs with schemas (Zod/Pydantic) | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-03** | **Single-User Device Isolation**: Enforce multi-tenant device isolation (1 user per device) | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-04** | **Encrypted Transport**: Enforce TLS/HTTPS across Dashboard, Backend API, and Agent | Non-Functional (Security) | Proposal / Security Rules | High |
+| **NFR-05** | **Dashboard API Performance**: Standard API responses < 200ms; table rendering < 100ms | Non-Functional (Performance) | Proposal / Architecture Specs | Medium |
+| **NFR-06** | **Agent Resource Footprint**: Agent background idle CPU < 1% and memory consumption < 50MB | Non-Functional (Performance) | Proposal / Architecture Specs | Medium |
+| **NFR-07** | **Accessible UI (WCAG 2.1 AA)**: Keyboard navigable controls, contrast compliance, aria-labels | Non-Functional (Accessibility) | Proposal / UX Standards | Medium |
+| **NFR-08** | **Color-Independent Status Indicators**: Accessible icons & text badges for all update states | Non-Functional (Accessibility) | Proposal / UX Standards | Medium |
+| **NFR-09** | **Resilient Connection Handling**: Exponential backoff and retry when network disconnects | Non-Functional (Reliability) | Proposal / Reliability Specs | High |
+| **NFR-10** | **Idempotent Execution**: Prevent concurrent or duplicate update executions on the same host | Non-Functional (Reliability) | Proposal / Reliability Specs | **Critical** |
+| **NFR-11** | **Test-Driven Delivery**: Automated unit and integration tests shipped with every feature | Non-Functional (Reliability) | Proposal / Engineering Rules | High |
+
