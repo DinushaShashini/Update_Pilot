@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .card-danger { fill: #1e293b; stroke: #ef4444; stroke-width: 1; rx: 8px; }
+      .code-box { fill: #020617; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-heading { fill: #f8fafc; font-size: 14px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .btn-primary { fill: #0284c7; rx: 6px; cursor: pointer; }
+      .btn-primary-text { fill: #ffffff; font-size: 12px; font-weight: 600; text-anchor: middle; }
+      .btn-secondary { fill: #334155; rx: 6px; cursor: pointer; }
+      .btn-secondary-text { fill: #cbd5e1; font-size: 12px; font-weight: 600; text-anchor: middle; }
+      .btn-danger { fill: #dc2626; rx: 6px; cursor: pointer; }
+      .btn-danger-text { fill: #ffffff; font-size: 12px; font-weight: 600; text-anchor: middle; }
+      .badge-success { fill: #064e3b; stroke: #059669; stroke-width: 1; rx: 10px; }
+      .badge-warning { fill: #78350f; stroke: #d97706; stroke-width: 1; rx: 10px; }
+      .toggle-active { fill: #0284c7; rx: 10px; }
+      .toggle-inactive { fill: #334155; rx: 10px; }
+      .row-divider { stroke: #334155; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#94a3b8" font-size="13">Device: <tspan fill="#f8fafc" font-weight="600">DESKTOP-DINUSHA</tspan></text>
+
+  <!-- Header Right Action -->
+  <g transform="translate(930, 13)">
+    <rect width="130" height="34" class="btn-primary" />
+    <path d="M 18 17 A 6 6 0 1 1 18 21 M 18 12 L 21 16 L 15 16 Z" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
+    <text x="74" y="22" class="btn-primary-text">Scan now</text>
+  </g>
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <text x="36" y="23" class="text-body">Overview</text>
+    <text x="36" y="63" class="text-body">Updates (33)</text>
+    <text x="36" y="103" class="text-body">Installed Apps (196)</text>
+    <text x="36" y="143" class="text-body">Devices (1)</text>
+    <text x="36" y="183" class="text-body">Audit &amp; History</text>
+    <!-- Active Nav: Settings / Agent -->
+    <rect x="0" y="200" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="223" fill="#38bdf8" font-size="13" font-weight="600">Settings &amp; Agent</text>
+  </g>
+
+  <!-- Main Content Area (928px wide) -->
+  <g transform="translate(244, 85)">
+    <!-- Title -->
+    <text x="0" y="22" class="text-title">Agent Configuration &amp; Device Settings</text>
+    <text x="0" y="44" class="text-body">Manage host pairing credentials, live agent telemetry, and scan preferences</text>
+
+    <!-- Top Row: Card 1 (Pairing Code) & Card 2 (Agent Telemetry Status) -->
+    <!-- Card 1: Pairing Token & CLI Setup (452px wide) -->
+    <g transform="translate(0, 65)">
+      <rect width="452" height="270" class="card" />
+
+      <g transform="translate(20, 20)">
+        <text x="0" y="14" class="text-heading">Device Pairing Token</text>
+        <text x="0" y="32" class="text-body">One-time cryptographic token to onboard a Windows host</text>
+
+        <!-- Live Expiry Badge -->
+        <g transform="translate(270, 0)">
+          <rect width="140" height="24" class="badge-warning" />
+          <circle cx="12" cy="12" r="4" fill="#f59e0b" />
+          <text x="75" y="16" fill="#f59e0b" font-size="11" font-weight="600" text-anchor="middle">Expires in 12:45</text>
+        </g>
+      </g>
+
+      <line x1="20" y1="72" x2="432" y2="72" class="row-divider" />
+
+      <!-- Token Box & Copy -->
+      <g transform="translate(20, 85)">
+        <text x="0" y="12" class="text-muted">ACTIVE PAIRING KEY:</text>
+        <rect y="18" width="412" height="40" class="code-box" />
+        <text x="14" y="43" fill="#38bdf8" font-family="'Consolas', monospace" font-size="13" font-weight="700">tok_8f92ab14ce67d0219b</text>
+        <g transform="translate(325, 24)">
+          <rect width="75" height="28" class="btn-secondary" />
+          <text x="37" y="18" class="btn-secondary-text">Copy Key</text>
+        </g>
+      </g>
+
+      <!-- Terminal Command Snippet -->
+      <g transform="translate(20, 160)">
+        <text x="0" y="12" class="text-muted">POWERSHELL / CMD INVOCATION COMMAND:</text>
+        <rect y="18" width="412" height="36" class="code-box" />
+        <text x="12" y="41" fill="#e2e8f0" font-family="'Consolas', monospace" font-size="10">python -m updatepilot pair --token tok_8f92ab14ce67d0219b</text>
+      </g>
+
+      <!-- Generate Fresh Token CTA -->
+      <g transform="translate(20, 226)">
+        <text x="0" y="16" fill="#38bdf8" font-size="12" cursor="pointer">↻ Invalidate &amp; Generate New Token</text>
+      </g>
+    </g>
+
+    <!-- Card 2: Connected Agent Telemetry (452px wide) -->
+    <g transform="translate(476, 65)">
+      <rect width="452" height="270" class="card" />
+
+      <g transform="translate(20, 20)">
+        <text x="0" y="14" class="text-heading">Connected Agent Status</text>
+        <text x="0" y="32" class="text-body">Live heartbeat from DESKTOP-DINUSHA</text>
+
+        <!-- Status Pill -->
+        <g transform="translate(310, 0)">
+          <rect width="100" height="24" class="badge-success" />
+          <circle cx="14" cy="12" r="4" fill="#10b981" />
+          <text x="56" y="16" fill="#10b981" font-size="11" font-weight="600" text-anchor="middle">ONLINE</text>
+        </g>
+      </g>
+
+      <line x1="20" y1="72" x2="432" y2="72" class="row-divider" />
+
+      <!-- Telemetry Specs Grid -->
+      <g transform="translate(20, 85)">
+        <text x="0" y="12" class="text-muted">HOST COMPUTER NAME</text>
+        <text x="0" y="28" fill="#f8fafc" font-size="13" font-weight="600">DESKTOP-DINUSHA</text>
+
+        <text x="210" y="12" class="text-muted">LAST HEARTBEAT</text>
+        <text x="210" y="28" fill="#10b981" font-size="13" font-weight="600">30 seconds ago (Healthy)</text>
+
+        <text x="0" y="58" class="text-muted">OPERATING SYSTEM</text>
+        <text x="0" y="74" class="text-body">Windows 11 Home (Build 26200)</text>
+
+        <text x="210" y="58" class="text-muted">HARDWARE UUID</text>
+        <text x="210" y="74" fill="#64748b" font-family="'Consolas', monospace" font-size="10">4C4C4544-004E-5210...</text>
+
+        <text x="0" y="104" class="text-muted">WINGET CLI ENGINE</text>
+        <text x="0" y="120" class="text-body">v1.29.380 (Official AppInstaller)</text>
+
+        <text x="210" y="104" class="text-muted">PYTHON AGENT RUNTIME</text>
+        <text x="210" y="120" class="text-body">Python 3.14.0 (x64 daemon)</text>
+      </g>
+    </g>
+
+    <!-- Bottom Row: Card 3 (Basic Settings) & Card 4 (Danger Zone / Revoke) -->
+    <!-- Card 3: Basic Settings (452px wide) -->
+    <g transform="translate(0, 355)">
+      <rect width="452" height="330" class="card" />
+
+      <g transform="translate(20, 20)">
+        <text x="0" y="14" class="text-heading">Operational Preferences</text>
+        <text x="0" y="32" class="text-body">Agent behavior and update execution policies</text>
+      </g>
+
+      <line x1="20" y1="68" x2="432" y2="68" class="row-divider" />
+
+      <!-- Setting 1: Require Explicit Approval (Locked / Enforced) -->
+      <g transform="translate(20, 85)">
+        <text x="0" y="14" fill="#f8fafc" font-size="13" font-weight="600">Explicit Approval Gate</text>
+        <text x="0" y="30" class="text-muted">Never install software updates automatically without approval.</text>
+        <rect x="360" y="6" width="44" height="22" class="toggle-active" />
+        <circle cx="392" cy="17" r="8" fill="#ffffff" />
+        <text x="350" y="44" fill="#38bdf8" font-size="9" text-anchor="middle">ENFORCED RULE</text>
+      </g>
+
+      <line x1="20" y1="145" x2="432" y2="145" class="row-divider" />
+
+      <!-- Setting 2: Unattended Silent Switch Enforcement -->
+      <g transform="translate(20, 160)">
+        <text x="0" y="14" fill="#f8fafc" font-size="13" font-weight="600">Force Silent Upgrades (--silent)</text>
+        <text x="0" y="30" class="text-muted">Suppress interactive wizard dialogs during agent executions.</text>
+        <rect x="360" y="6" width="44" height="22" class="toggle-active" />
+        <circle cx="392" cy="17" r="8" fill="#ffffff" />
+      </g>
+
+      <line x1="20" y1="220" x2="432" y2="220" class="row-divider" />
+
+      <!-- Setting 3: Scan Polling Interval -->
+      <g transform="translate(20, 235)">
+        <text x="0" y="14" fill="#f8fafc" font-size="13" font-weight="600">Agent Heartbeat Frequency</text>
+        <text x="0" y="30" class="text-muted">Heartbeat ping interval for online detection.</text>
+        <rect x="310" y="6" width="94" height="28" class="input-box" />
+        <text x="357" y="24" fill="#f8fafc" font-size="11" text-anchor="middle">Every 60s ▾</text>
+      </g>
+    </g>
+
+    <!-- Card 4: Danger Zone - Revoke Agent Pairing (452px wide) -->
+    <g transform="translate(476, 355)">
+      <rect width="452" height="330" class="card-danger" />
+
+      <g transform="translate(20, 20)">
+        <text x="0" y="14" fill="#ef4444" font-size="14" font-weight="700">Danger Zone: Device Pairing</text>
+        <text x="0" y="32" class="text-body">Decommission or revoke agent authorization</text>
+      </g>
+
+      <line x1="20" y1="68" x2="432" y2="68" stroke="#ef4444" stroke-opacity="0.3" stroke-width="1" />
+
+      <g transform="translate(20, 85)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Revoke Agent for DESKTOP-DINUSHA</text>
+        <text x="0" y="38" fill="#94a3b8" font-size="12">Revoking this device immediately invalidates all active tokens.</text>
+        <text x="0" y="58" fill="#94a3b8" font-size="12">The background Python agent will lose access to the API and</text>
+        <text x="0" y="78" fill="#94a3b8" font-size="12">will be unable to sync or apply approved updates.</text>
+
+        <!-- Consequence Checklist -->
+        <g transform="translate(0, 100)">
+          <circle cx="6" cy="6" r="3" fill="#ef4444" />
+          <text x="16" y="9" class="text-muted">Cancels all pending update approval commands</text>
+          <circle cx="6" cy="26" r="3" fill="#ef4444" />
+          <text x="16" y="29" class="text-muted">Erases remote device secret from database</text>
+          <circle cx="6" cy="46" r="3" fill="#ef4444" />
+          <text x="16" y="49" class="text-muted">Requires generating a fresh pairing token to reconnect</text>
+        </g>
+
+        <!-- Revoke CTA Button -->
+        <g transform="translate(0, 180)">
+          <rect width="180" height="38" class="btn-danger" />
+          <text x="90" y="23" class="btn-danger-text">Revoke Agent Token...</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
