@@ -172,29 +172,71 @@ UpdatePilot provides centralized visibility and controlled management of Windows
 
 ---
 
-## 4. Requirements Checklist
+## 4. MVP Scope & Requirements Checklist
+
+### 4.1 MVP Definition & Scope Boundary
+The Minimum Viable Product (MVP) delivers the complete end-to-end value loop:
+1. **User Authentication**: Secure user login and registration with hashed credentials.
+2. **Device Pairing**: Secure 1:1 binding between a user and their Windows PC agent via one-time tokens.
+3. **Application Scan**: Safe read-only discovery of installed software using WinGet.
+4. **Update Detection**: Detection and version delta computation for outdated packages.
+5. **Approved Update Workflow**: Previewing pending updates in the dashboard and applying updates **only** upon explicit user approval.
+6. **Post-Update Verification**: Agent execution of `winget upgrade`, exit-code evaluation, and post-installation version confirmation.
+7. **Audit & Update History**: Searchable, immutable log of past scans, approvals, rejections, and execution results.
+
+---
+
+### 4.2 Essential Requirements (MVP)
 
 | ID | Requirement | Type | Source in Proposal | Priority |
 | :--- | :--- | :--- | :--- | :--- |
 | **FR-01** | User registration, login, and JWT-based session management | Functional | Proposal / Core Specs | High |
-| **FR-02** | Device onboarding via secure one-time pairing token (1:1 user-device binding) | Functional | Proposal / Core Specs | High |
+| **FR-02** | Device onboarding via secure one-time pairing token (strict 1:1 user-device binding) | Functional | Proposal / Core Specs | High |
 | **FR-03** | Read-only scan of installed applications on Windows host via WinGet | Functional | Proposal / Core Specs | High |
 | **FR-04** | Detection and version diff calculation of available software updates | Functional | Proposal / Core Specs | High |
-| **FR-05** | Secure transmission of discovered inventory and updates to backend | Functional | Proposal / Core Specs | High |
-| **FR-06** | Explicit user approval gate; no update can execute without user approval | Functional | Proposal / Non-Negotiables | **Critical** |
-| **FR-07** | Controlled execution: agent applies `winget upgrade` only for verified approved updates | Functional | Proposal / Non-Negotiables | **Critical** |
-| **FR-08** | Real-time reporting of update execution outcome (success/failure exit code & logs) | Functional | Proposal / Core Specs | High |
-| **FR-09** | Immutable audit logging of scans, approvals, rejections, and execution history | Functional | Proposal / Core Specs | High |
-| **FR-10** | Device revocation and token invalidation to decommission paired agents | Functional | Proposal / Core Specs | Medium |
-| **NFR-01** | **Zero Plaintext Secrets**: Hash passwords (bcrypt/Argon2) and tokens; no plaintext storage | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
-| **NFR-02** | **Strict Input Validation**: Validate all API payloads and inputs with schemas (Zod/Pydantic) | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
-| **NFR-03** | **Single-User Device Isolation**: Enforce multi-tenant device isolation (1 user per device) | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
-| **NFR-04** | **Encrypted Transport**: Enforce TLS/HTTPS across Dashboard, Backend API, and Agent | Non-Functional (Security) | Proposal / Security Rules | High |
-| **NFR-05** | **Dashboard API Performance**: Standard API responses < 200ms; table rendering < 100ms | Non-Functional (Performance) | Proposal / Architecture Specs | Medium |
-| **NFR-06** | **Agent Resource Footprint**: Agent background idle CPU < 1% and memory consumption < 50MB | Non-Functional (Performance) | Proposal / Architecture Specs | Medium |
-| **NFR-07** | **Accessible UI (WCAG 2.1 AA)**: Keyboard navigable controls, contrast compliance, aria-labels | Non-Functional (Accessibility) | Proposal / UX Standards | Medium |
-| **NFR-08** | **Color-Independent Status Indicators**: Accessible icons & text badges for all update states | Non-Functional (Accessibility) | Proposal / UX Standards | Medium |
+| **FR-05** | Secure transmission of discovered inventory and updates to backend API | Functional | Proposal / Core Specs | High |
+| **FR-06** | **Explicit User Approval Gate**: No update executes without direct user dashboard approval | Functional | Proposal / Non-Negotiables | **Critical** |
+| **FR-07** | **Controlled Execution**: Agent executes `winget upgrade --id <Id> --exact` strictly for approved items | Functional | Proposal / Non-Negotiables | **Critical** |
+| **FR-08** | **Post-Update Verification**: Agent verifies exit code and confirms updated version in inventory | Functional | Proposal / Core Specs | High |
+| **FR-09** | **Audit & History Log**: Immutable record of all scans, approvals, rejections, and outcomes | Functional | Proposal / Core Specs | High |
+| **NFR-01** | **Zero Plaintext Secrets**: Passwords hashed with bcrypt/Argon2; device tokens hashed with SHA-256 | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-02** | **Strict Input Validation**: Zod schema validation across all backend endpoints and agent inputs | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-03** | **Single-User Device Isolation**: Enforce absolute multi-tenant tenant isolation (1 user per device) | Non-Functional (Security) | Proposal / Security Rules | **Critical** |
+| **NFR-04** | **Encrypted Transport**: All communication over HTTPS/TLS with certificate verification | Non-Functional (Security) | Proposal / Security Rules | High |
 | **NFR-09** | **Resilient Connection Handling**: Exponential backoff and retry when network disconnects | Non-Functional (Reliability) | Proposal / Reliability Specs | High |
-| **NFR-10** | **Idempotent Execution**: Prevent concurrent or duplicate update executions on the same host | Non-Functional (Reliability) | Proposal / Reliability Specs | **Critical** |
-| **NFR-11** | **Test-Driven Delivery**: Automated unit and integration tests shipped with every feature | Non-Functional (Reliability) | Proposal / Engineering Rules | High |
+| **NFR-10** | **Idempotent Execution**: Prevent concurrent or duplicate update executions for the same package | Non-Functional (Reliability) | Proposal / Reliability Specs | **Critical** |
+| **NFR-11** | **Test-Driven Delivery**: Automated unit and integration tests shipped alongside every feature | Non-Functional (Reliability) | Proposal / Engineering Rules | High |
+
+---
+
+### 4.3 Optional Requirements (Deferred to Later Phase)
+
+| ID | Requirement | Type | Deferral Justification (One-Line Rationale) |
+| :--- | :--- | :--- | :--- |
+| **FR-10** | Device revocation & token invalidation UI | Functional | Manual credential removal in configuration/DB suffices for early single-operator prototype testing. |
+| **FR-11** | Automated background recurring scheduled scans | Functional | Manual on-demand scan triggers adequately validate the end-to-end loop without background cron scheduler overhead. |
+| **FR-12** | Batch multi-package approval ("Approve All") | Functional | Single-item inspection and approval is strictly safer and emphasizes manual human verification in the initial release. |
+| **FR-13** | Automated rollback on installation failure | Functional | WinGet lacks universal atomic rollback support, requiring external volume snapshotting outside MVP scope. |
+| **NFR-05** | Distributed query caching (Redis / sub-50ms latency) | Non-Functional (Performance) | Initial single-user workload volumes do not justify distributed caching infrastructure. |
+| **NFR-06** | Windows MSI / Windows Service daemon packaging | Non-Functional (DevOps) | Direct Python CLI worker process is faster to iterate, debug, and run during MVP development. |
+| **NFR-07** | Formal third-party WCAG 2.1 AA accessibility audit | Non-Functional (Accessibility) | Clean semantic HTML and contrast are built in, but certified auditing is deferred to enterprise release. |
+
+---
+
+### 4.4 Technical & Operational Risks
+
+1. **WinGet Limitations**:
+   - *Interactive UAC & Elevation*: Upgrading system-wide software often requires elevated Administrator privileges; non-elevated background agents will fail silently or hang waiting for an interactive UAC prompt.
+   - *Installer Flag Inconsistencies*: Not all WinGet community manifests support silent switches (`--silent`), potentially launching visual installation wizards on the user's desktop.
+   - *Manifest Staleness*: WinGet community repository manifests can occasionally reference outdated download URLs, stale hashes, or conflicting package IDs between `winget` and `msstore` sources.
+
+2. **Unsupported Applications**:
+   - *Unmanaged & Portable Apps*: Standalone `.exe` binaries, portable tools, and custom in-house software not tracked in Windows registry uninstall keys or WinGet catalogs cannot be scanned or updated.
+   - *Autonomous In-App Updaters*: Applications with built-in auto-update daemons (e.g., Google Chrome, Visual Studio Code) may update outside of UpdatePilot, resulting in temporary inventory drift until the next scan.
+
+3. **Agent Security & Host Integrity**:
+   - *Command Injection Vectors*: Malicious or manipulated package IDs could attempt shell argument injection; must strictly enforce regex whitelisting (`^[a-zA-Z0-9\.\-_]+$`) and array-based subprocess execution without `shell=True`.
+   - *Host Secret Exposure*: If a host machine is compromised, cached device tokens stored in plaintext could be stolen; local token storage must use restrictive OS permissions or DPAPI encryption.
+   - *Man-in-the-Middle (MitM)*: Intercepted traffic could spoof pending scan data or update status; enforced TLS/HTTPS with certificate validation is mandatory.
+
 
