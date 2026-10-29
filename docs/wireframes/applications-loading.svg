@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .skeleton-block { fill: #334155; rx: 4px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .btn-loading { fill: #075985; rx: 6px; }
+      .btn-loading-text { fill: #e0f2fe; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .row-divider { stroke: #334155; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#94a3b8" font-size="13">Device: <tspan fill="#f8fafc" font-weight="600">DESKTOP-DINUSHA</tspan></text>
+
+  <!-- Header Right Loading Button -->
+  <g transform="translate(900, 13)">
+    <rect width="160" height="34" class="btn-loading" />
+    <circle cx="24" cy="17" r="7" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="24 10" />
+    <text x="94" y="22" class="btn-loading-text">Loading packages...</text>
+  </g>
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <text x="36" y="23" class="text-body">Overview</text>
+    <text x="36" y="63" class="text-body">Updates (...)</text>
+    <rect x="0" y="80" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="103" fill="#38bdf8" font-size="13" font-weight="600">Installed Apps</text>
+    <text x="36" y="143" class="text-body">Devices (1)</text>
+    <text x="36" y="183" class="text-body">Audit &amp; History</text>
+    <text x="36" y="223" class="text-body">Settings</text>
+  </g>
+
+  <!-- Main Content Area -->
+  <g transform="translate(244, 85)">
+    <text x="0" y="22" class="text-title">Installed Applications</text>
+    <rect x="0" y="34" width="260" height="12" class="skeleton-block" opacity="0.6" />
+
+    <!-- Skeleton Toolbar -->
+    <g transform="translate(0, 60)">
+      <rect width="250" height="36" class="card" />
+      <rect x="16" y="12" width="120" height="12" class="skeleton-block" />
+
+      <g transform="translate(260, 0)">
+        <rect width="135" height="36" class="card" />
+        <rect x="16" y="12" width="80" height="12" class="skeleton-block" />
+      </g>
+
+      <g transform="translate(405, 0)">
+        <rect width="130" height="36" class="card" />
+        <rect x="16" y="12" width="70" height="12" class="skeleton-block" />
+      </g>
+    </g>
+
+    <!-- Table Skeleton Container (928px full width) -->
+    <g transform="translate(0, 110)">
+      <rect width="928" height="580" class="card" />
+
+      <!-- Table Header Skeleton -->
+      <rect x="20" y="18" width="120" height="12" class="skeleton-block" opacity="0.8" />
+      <rect x="260" y="18" width="100" height="12" class="skeleton-block" opacity="0.8" />
+      <rect x="460" y="18" width="70" height="12" class="skeleton-block" opacity="0.8" />
+      <rect x="620" y="18" width="80" height="12" class="skeleton-block" opacity="0.8" />
+      <rect x="800" y="18" width="60" height="12" class="skeleton-block" opacity="0.8" />
+      <line x1="20" y1="40" x2="908" y2="40" class="row-divider" />
+
+      <!-- 8 Skeleton Rows -->
+      <!-- Row 1 -->
+      <g transform="translate(20, 55)">
+        <rect x="0" y="0" width="180" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="100" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="130" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="60" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="90" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="102" x2="908" y2="102" class="row-divider" />
+
+      <!-- Row 2 -->
+      <g transform="translate(20, 115)">
+        <rect x="0" y="0" width="140" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="80" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="110" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="55" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="90" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="162" x2="908" y2="162" class="row-divider" />
+
+      <!-- Row 3 -->
+      <g transform="translate(20, 175)">
+        <rect x="0" y="0" width="160" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="90" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="140" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="70" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="80" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="222" x2="908" y2="222" class="row-divider" />
+
+      <!-- Row 4 -->
+      <g transform="translate(20, 235)">
+        <rect x="0" y="0" width="170" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="110" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="120" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="65" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="80" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="282" x2="908" y2="282" class="row-divider" />
+
+      <!-- Row 5 -->
+      <g transform="translate(20, 295)">
+        <rect x="0" y="0" width="150" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="85" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="130" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="60" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="90" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="342" x2="908" y2="342" class="row-divider" />
+
+      <!-- Row 6 -->
+      <g transform="translate(20, 355)">
+        <rect x="0" y="0" width="190" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="120" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="150" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="70" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="80" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="402" x2="908" y2="402" class="row-divider" />
+
+      <!-- Row 7 -->
+      <g transform="translate(20, 415)">
+        <rect x="0" y="0" width="130" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="70" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="100" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="50" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="90" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+      <line x1="20" y1="462" x2="908" y2="462" class="row-divider" />
+
+      <!-- Row 8 -->
+      <g transform="translate(20, 475)">
+        <rect x="0" y="0" width="165" height="14" class="skeleton-block" />
+        <rect x="0" y="20" width="95" height="10" class="skeleton-block" opacity="0.4" />
+        <rect x="240" y="8" width="125" height="14" class="skeleton-block" />
+        <rect x="440" y="8" width="60" height="14" class="skeleton-block" />
+        <rect x="600" y="4" width="80" height="20" class="skeleton-block" />
+        <rect x="780" y="8" width="50" height="14" class="skeleton-block" />
+      </g>
+
+      <!-- Pagination Skeleton Footer -->
+      <g transform="translate(20, 540)">
+        <line x1="0" y1="0" x2="888" y2="0" class="row-divider" />
+        <rect x="0" y="15" width="140" height="12" class="skeleton-block" opacity="0.6" />
+        <g transform="translate(680, 8)">
+          <rect width="28" height="24" class="card" />
+          <rect x="34" width="28" height="24" class="card" />
+          <rect x="68" width="28" height="24" class="card" />
+          <rect x="102" width="28" height="24" class="card" />
+          <rect x="136" width="28" height="24" class="card" />
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
