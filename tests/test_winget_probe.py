@@ -78,6 +78,31 @@ Mozilla Firefox               Mozilla.Firefox                  125.0.1       125
         self.assertIn(-1978298325, NO_APPLICATIONS_FOUND_CODES)
         self.assertIn(2316632107, NO_APPLICATIONS_FOUND_CODES)
 
+    def test_parse_real_fixtures(self):
+        fixture_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'fixtures', 'winget'))
+        list_file = os.path.join(fixture_dir, 'list.txt')
+        upgrade_file = os.path.join(fixture_dir, 'upgrade.txt')
+
+        if os.path.exists(list_file):
+            with open(list_file, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            items = parse_winget_table(content)
+            self.assertGreater(len(items), 50, "Should parse at least 50 installed applications from real list.txt")
+            # Verify 7-Zip is present
+            seven_zip = next((item for item in items if item["id"] == "7zip.7zip"), None)
+            self.assertIsNotNone(seven_zip)
+            self.assertEqual(seven_zip["source"], "winget")
+
+        if os.path.exists(upgrade_file):
+            with open(upgrade_file, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+            upgrades = parse_winget_table(content)
+            self.assertGreater(len(upgrades), 20, "Should parse available upgrades from real upgrade.txt")
+            # Verify Git is detected
+            git_up = next((item for item in upgrades if item["id"] == "Git.Git"), None)
+            self.assertIsNotNone(git_up)
+            self.assertTrue(git_up["available_version"])
+
 
 if __name__ == '__main__':
     unittest.main()

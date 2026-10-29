@@ -121,3 +121,41 @@ WinGet uses structured HRESULT exit codes to indicate operation results. Recogni
 2. **Explicit Flag Enforcement**: The agent must run WinGet with non-interactive flags (`--accept-source-agreements --accept-package-agreements --disable-interactivity`) to prevent commands from hanging waiting for standard input.
 3. **Source Validation**: Only packages possessing an explicit, verified `Source` (e.g., `winget`, `msstore`) and alphanumeric Package ID can be queued for update approval.
 4. **Resilient Exit Code Translation**: Treat exit code `0x8A15002B` (no applications found) as a clean "0 pending updates" state rather than an error.
+
+---
+
+## 8. Findings and Limits
+
+Based on real environment execution and empirical data captured from a live Windows 11 host (saved in `tests/fixtures/winget/list.txt` and `upgrade.txt`):
+
+### 8.1 Encoding Issues (UTF-16LE vs. UTF-8 & Special Characters)
+- **PowerShell Stream Redirection**: Windows PowerShell (`5.1`) redirects standard output using `UTF-16LE` by default when using redirection operators (`>`). When inspected by cross-platform tools or standard POSIX readers, this causes file encoding mismatches (`unsupported mime type text/plain; charset=utf-16le`) or null-byte interleaved text.
+- **Unicode & Trademark Symbols**: Real application names routinely include non-ASCII characters, such as `Intel® Graphics Command Center` (`®`), localized language packages (e.g., Japanese, Chinese IME packs), or Unicode em-dashes.
+- **Agent Requirement**: The agent scanner must execute WinGet directly via Python `subprocess.run(capture_output=True)` reading binary bytes and decoding explicitly using `utf-8` (with `errors="replace"` fallback) to prevent character corruption.
+
+### 8.2 Column Truncation and Buffer Boundaries
+- **Console Geometry Dependency**: WinGet dynamically adjusts column widths based on the terminal's visible buffer width. In constrained consoles or default window widths (80 or 120 columns), long package names or package IDs are truncated with Unicode ellipses (`…` or `...`), e.g., `Microsoft.VCRedist.2013...`.
+- **Divider Hyphen Offsets**: The hyphen row (`----------------`) directly mirrors the active column widths computed by WinGet for that invocation.
+- **Agent Requirement**: When running headless in background services, standard stdout redirection decouples WinGet from physical TTY constraints. The agent parser must calculate slice positions directly from the divider row's whitespace gaps and avoid fixed magic numbers.
+
+### 8.3 Apps Without Standard Package IDs (ARP and MSIX Synthetic IDs)
+- **Registry & MSI Artifacts**: Over 50% of installed desktop apps appear without standard winget IDs, represented instead as:
+  - `ARP\Machine\X86\...` (32-bit Add/Remove Programs registry keys)
+  - `ARP\Machine\X64\...` (64-bit Add/Remove Programs registry keys)
+  - `ARP\Machine\X64\{GUID}` (Windows Installer Product GUIDs)
+  - `MSIX\...` (Packaged Microsoft Store applications)
+- **Missing Source**: These entries have no value in the `Source` column (empty string). WinGet can detect that they are installed on the local system, but **cannot** query upstream catalogs or apply automated upgrades to them.
+- **Agent Requirement**: The scanner must categorize packages into:
+  - **Managed Packages**: Have a recognized `Source` (`winget` or `msstore`) and standard package ID (`Vendor.App`). Eligible for update checks.
+  - **Unmanaged Packages**: Registry ARP entries and legacy tools. Stored in inventory for device visibility, but filtered out of update queues.
+
+### 8.4 What This Means for the Scanning Approach
+1. **Two-Stage Inspection**:
+   - **Stage 1 (`winget list`)**: Gathers complete baseline software inventory across the machine (both managed and unmanaged).
+   - **Stage 2 (`winget upgrade`)**: Identifies only packages that have confirmed, actionable updates in an active source catalog.
+2. **Correlation & Gating**:
+   - The backend matches `winget upgrade` records against the device's managed package inventory using the canonical `id`.
+   - Only packages with an exact match, verified source, and distinct newer version are promoted to the `PENDING_APPROVAL` state.
+3. **Strict Non-Interactive Flagging**:
+   - All agent executions must include `--disable-interactivity --accept-source-agreements --accept-package-agreements` to ensure unattended operation without hanging.
+
