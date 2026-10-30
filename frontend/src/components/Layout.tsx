@@ -57,7 +57,9 @@ export const Layout: React.FC = () => {
         aria-label="Primary Navigation"
       >
         <div className="sidebar-header">
-          <div className="logo-badge" aria-hidden="true">UP</div>
+          <div className="logo-badge" aria-hidden="true">
+            UP
+          </div>
           <div className="logo-text">
             <span className="logo-title">UpdatePilot</span>
             <span className="logo-subtitle">Fleet Manager</span>
@@ -78,11 +80,11 @@ export const Layout: React.FC = () => {
                 <NavLink
                   to={item.path}
                   end={item.path === '/'}
-                  className={({ isActive }) =>
-                    isActive ? 'nav-link active' : 'nav-link'
-                  }
+                  className={({ isActive }) => (isActive ? 'nav-link active' : 'nav-link')}
                 >
-                  <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                  <span className="nav-icon" aria-hidden="true">
+                    {item.icon}
+                  </span>
                   <span className="nav-label">{item.label}</span>
                 </NavLink>
               </li>
@@ -127,12 +129,16 @@ export const Layout: React.FC = () => {
                 aria-haspopup="true"
                 aria-label="User account menu"
               >
-                <div className="user-avatar" aria-hidden="true">DS</div>
+                <div className="user-avatar" aria-hidden="true">
+                  DS
+                </div>
                 <div className="user-meta">
                   <span className="user-name">Dinusha S.</span>
                   <span className="user-role">Administrator</span>
                 </div>
-                <span className="chevron-icon" aria-hidden="true">▾</span>
+                <span className="chevron-icon" aria-hidden="true">
+                  ▾
+                </span>
               </button>
 
               {userMenuOpen && (
@@ -143,18 +149,38 @@ export const Layout: React.FC = () => {
                   </div>
                   <ul className="dropdown-items">
                     <li role="none">
-                      <a href="#profile" role="menuitem" className="dropdown-link" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); }}>
+                      <a
+                        href="#profile"
+                        role="menuitem"
+                        className="dropdown-link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setUserMenuOpen(false);
+                        }}
+                      >
                         Profile & Account
                       </a>
                     </li>
                     <li role="none">
-                      <a href="#preferences" role="menuitem" className="dropdown-link" onClick={(e) => { e.preventDefault(); setUserMenuOpen(false); }}>
+                      <a
+                        href="#preferences"
+                        role="menuitem"
+                        className="dropdown-link"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setUserMenuOpen(false);
+                        }}
+                      >
                         System Preferences
                       </a>
                     </li>
                     <li className="dropdown-divider" role="separator"></li>
                     <li role="none">
-                      <button role="menuitem" className="dropdown-link logout-link" onClick={() => setUserMenuOpen(false)}>
+                      <button
+                        role="menuitem"
+                        className="dropdown-link logout-link"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
                         Sign Out
                       </button>
                     </li>
