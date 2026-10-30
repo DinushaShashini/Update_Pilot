@@ -1,0 +1,36 @@
+Name                                                         Id                                    Version        Available      Source
+---------------------------------------------------------------------------------------------------------------------------------------
+7-Zip 24.09 (x64)                                            7zip.7zip                             24.09          26.05          winget
+AnyDesk                                                      AnyDesk.AnyDesk                       ad 9.7.15      9.8.3          winget
+ChatGPT                                                      OpenAI.ChatGPT                        26.1007.2314.0 26.1023.6621.0 winget
+Cursor (User)                                                Anysphere.Cursor                      3.16.17        3.20.14        winget
+Driver Booster 13                                            IObit.DriverBooster                   < 14.0.1.462   14.0.1.462     winget
+Git                                                          Git.Git                               2.50.0.2       2.56.0.3       winget
+GitHub Desktop                                               GitHub.GitHubDesktop                  3.6.7          3.6.10         winget
+Java(TM) SE Development Kit 25.0.2 (64-bit)                  Oracle.JDK.25                         25.0.2.0       25.0.5.0       winget
+Microsoft Edge                                               Microsoft.Edge                        156.0.4314.42  156.0.4314.50  winget
+Microsoft ODBC Driver 17 for SQL Server                      Microsoft.msodbcsql.17                17.10.6.1      17.11.1.1      winget
+Microsoft OLE DB Driver for SQL Server                       Microsoft.SQLServer.OLEDBDriver       18.7.4.0       19.4.3         winget
+Microsoft SQL Server Management Studio - 20.2                Microsoft.SQLServerManagementStudio   20.2           20.2.1         winget
+Microsoft Visual C++ 2013 Redistributable (x64) - 12.0.40660 Microsoft.VCRedist.2013.x64           12.0.40660.0   12.0.40664.0   winget
+Microsoft Visual C++ 2013 Redistributable (x86) - 12.0.40660 Microsoft.VCRedist.2013.x86           12.0.40660.0   12.0.40664.0   winget
+Microsoft Visual C++ v14 Redistributable (x64) - 14.50.35719 Microsoft.VCRedist.2015+.x64          14.50.35719.0  14.51.36247.0  winget
+Microsoft Visual C++ v14 Redistributable (x86) - 14.50.35719 Microsoft.VCRedist.2015+.x86          14.50.35719.0  14.51.36247.0  winget
+MongoDB Shell                                                MongoDB.Shell                         2.5.5          2.14.0         winget
+MySQL Server 8.0                                             Oracle.MySQL                          8.0.42         8.4.9          winget
+MySQL Workbench 8.0 CE                                       Oracle.MySQLWorkbench                 8.0.42         26.10.0        winget
+Node.js                                                      OpenJS.NodeJS.LTS                     24.13.0        26.13.0        winget
+OpenCode 1.18.18                                             SST.OpenCodeDesktop                   1.18.18        1.19.5         winget
+Oracle VirtualBox 7.2.6                                      Oracle.VirtualBox                     7.2.6          7.2.22         winget
+Outlook for Windows                                          Microsoft.Outlook                     1.2024.717.400 1.2026.812.100 winget
+Python 3.14.0 (64-bit)                                       Python.Python.3.14                    3.14.0         3.14.7         winget
+Python Launcher                                              Python.Launcher                       < 3.14.7       3.14.7         winget
+R for Windows 4.5.1                                          RProject.R                            4.5.1          4.6.1          winget
+RStudio                                                      Posit.RStudio                         2025.09.1+401  2026.10.1+239  winget
+Visual Studio Community 2022                                 Microsoft.VisualStudio.2022.Community 17.10.5        17.14.43       winget
+VLC media player                                             VideoLAN.VLC                          3.0.21         3.0.24         winget
+Windows Subsystem for Linux                                  Microsoft.WSL                         2.7.11.0       2.7.14         winget
+Windows Terminal                                             Microsoft.WindowsTerminal             1.24.12741.0   1.25.2733.0    winget
+WinRAR 7.01 (64-bit)                                         RARLab.WinRAR                         7.01.0         7.23.0         winget
+Zoom                                                         Zoom.Zoom.EXE                         5.10.7 (6120)  7.2.1 (48556)  winget
+33 upgrades available.

@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-heading { fill: #f8fafc; font-size: 15px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .text-stat { fill: #64748b; font-size: 26px; font-weight: 700; }
+      .btn-primary { fill: #0284c7; rx: 6px; cursor: pointer; }
+      .btn-primary-text { fill: #ffffff; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .btn-secondary { fill: #334155; rx: 6px; cursor: pointer; }
+      .btn-secondary-text { fill: #f8fafc; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .code-box { fill: #0f172a; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .code-text { fill: #38bdf8; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; }
+      .row-divider { stroke: #334155; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#64748b" font-size="13">No device selected</text>
+
+  <!-- Header Right Actions: Disabled Scan Now -->
+  <g transform="translate(930, 13)">
+    <rect width="130" height="34" fill="#1e293b" stroke="#334155" stroke-width="1" rx="6" />
+    <text x="65" y="22" fill="#64748b" font-size="13" font-weight="600" text-anchor="middle">Scan now</text>
+  </g>
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <rect x="0" y="0" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="23" fill="#38bdf8" font-size="13" font-weight="600">Overview</text>
+    <text x="36" y="63" class="text-muted">Updates (0)</text>
+    <text x="36" y="103" class="text-muted">Installed Apps (0)</text>
+    <text x="36" y="143" class="text-muted">Devices (0)</text>
+    <text x="36" y="183" class="text-muted">Audit &amp; History</text>
+    <text x="36" y="223" class="text-body">Settings</text>
+  </g>
+
+  <!-- Main Content Area -->
+  <g transform="translate(244, 85)">
+    <text x="0" y="22" class="text-title">Dashboard Overview</text>
+    <text x="0" y="44" class="text-body">Host software inventory and update approval center</text>
+
+    <!-- 5 Summary Metric Cards (Zero State) -->
+    <!-- Card 1 -->
+    <g transform="translate(0, 65)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Total Apps</text>
+      <text x="16" y="66" class="text-stat">--</text>
+      <text x="16" y="86" class="text-muted">No scan data</text>
+    </g>
+
+    <!-- Card 2 -->
+    <g transform="translate(188, 65)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Updates Available</text>
+      <text x="16" y="66" class="text-stat">--</text>
+      <text x="16" y="86" class="text-muted">No updates pending</text>
+    </g>
+
+    <!-- Card 3 -->
+    <g transform="translate(376, 65)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Unsupported</text>
+      <text x="16" y="66" class="text-stat">--</text>
+      <text x="16" y="86" class="text-muted">Uncategorized</text>
+    </g>
+
+    <!-- Card 4 -->
+    <g transform="translate(564, 65)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Last Scan</text>
+      <text x="16" y="66" class="text-stat">Never</text>
+      <text x="16" y="86" class="text-muted">Awaiting initial scan</text>
+    </g>
+
+    <!-- Card 5 -->
+    <g transform="translate(752, 65)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Agent Status</text>
+      <circle cx="24" cy="54" r="5" fill="#64748b" />
+      <text x="36" y="58" fill="#94a3b8" font-size="16" font-weight="600">Unpaired</text>
+      <text x="16" y="86" class="text-muted">No connected agents</text>
+    </g>
+
+    <!-- Large Empty State Callout -->
+    <g transform="translate(0, 185)">
+      <rect width="928" height="520" class="card" />
+
+      <!-- Center Onboarding Graphic & Guidance -->
+      <g transform="translate(464, 110)">
+        <!-- Monitor & Agent Icon -->
+        <circle cx="0" cy="0" r="44" fill="#0c4a6e" stroke="#0284c7" stroke-width="1.5" />
+        <rect x="-20" y="-14" width="40" height="26" rx="3" fill="none" stroke="#38bdf8" stroke-width="2" />
+        <line x1="-8" y1="12" x2="8" y2="12" stroke="#38bdf8" stroke-width="2" />
+        <line x1="0" y1="12" x2="0" y2="18" stroke="#38bdf8" stroke-width="2" />
+        <line x1="-12" y1="18" x2="12" y2="18" stroke="#38bdf8" stroke-width="2" />
+      </g>
+
+      <text x="464" y="195" fill="#f8fafc" font-size="20" font-weight="700" text-anchor="middle">Pair Your Windows Device to Get Started</text>
+      <text x="464" y="225" fill="#94a3b8" font-size="14" text-anchor="middle">UpdatePilot connects to your PC through the lightweight Python agent to scan WinGet packages</text>
+      <text x="464" y="245" fill="#94a3b8" font-size="14" text-anchor="middle">and notify you whenever approved software updates become available.</text>
+
+      <!-- Quick Setup Instructions Box -->
+      <g transform="translate(184, 280)">
+        <rect width="560" height="110" class="code-box" />
+        <text x="20" y="28" fill="#e2e8f0" font-size="12" font-weight="600">Run this command on your Windows PC to pair the agent:</text>
+        <rect x="20" y="42" width="520" height="34" fill="#020617" rx="4" />
+        <text x="32" y="63" class="code-text">python -m updatepilot pair --token tok_8f92ab14c --server https://updatepilot.app</text>
+        <text x="20" y="96" fill="#64748b" font-size="11">Token is single-use and expires in 15 minutes. No plaintext credentials are stored.</text>
+      </g>
+
+      <!-- Action Buttons -->
+      <g transform="translate(374, 420)">
+        <rect width="180" height="40" class="btn-primary" />
+        <text x="90" y="25" class="btn-primary-text">Generate New Token</text>
+      </g>
+    </g>
+  </g>
+</svg>

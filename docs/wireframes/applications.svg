@@ -1,0 +1,309 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .flyout { fill: #1e293b; stroke: #0284c7; stroke-width: 1.5; rx: 8px; filter: drop-shadow(-4px 0 12px rgba(0,0,0,0.5)); }
+      .input-box { fill: #0f172a; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-heading { fill: #f8fafc; font-size: 14px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .text-badge { font-size: 10px; font-weight: 600; text-anchor: middle; }
+      .btn-primary { fill: #0284c7; rx: 6px; cursor: pointer; }
+      .btn-primary-text { fill: #ffffff; font-size: 12px; font-weight: 600; text-anchor: middle; }
+      .btn-secondary { fill: #334155; rx: 6px; cursor: pointer; }
+      .btn-secondary-text { fill: #f8fafc; font-size: 12px; font-weight: 600; text-anchor: middle; }
+      .badge-update { fill: #78350f; stroke: #d97706; stroke-width: 1; rx: 10px; }
+      .badge-supported { fill: #064e3b; stroke: #059669; stroke-width: 1; rx: 10px; }
+      .badge-unsupported { fill: #1e293b; stroke: #475569; stroke-width: 1; rx: 10px; }
+      .row-divider { stroke: #334155; stroke-width: 1; }
+      .row-selected { fill: #0369a1; fill-opacity: 0.15; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#94a3b8" font-size="13">Device: <tspan fill="#f8fafc" font-weight="600">DESKTOP-DINUSHA</tspan></text>
+
+  <g transform="translate(930, 13)">
+    <rect width="130" height="34" class="btn-primary" />
+    <path d="M 18 17 A 6 6 0 1 1 18 21 M 18 12 L 21 16 L 15 16 Z" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" />
+    <text x="74" y="22" class="btn-primary-text">Scan now</text>
+  </g>
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <text x="36" y="23" class="text-body">Overview</text>
+    <text x="36" y="63" class="text-body">Updates (33)</text>
+    <!-- Active Nav Item -->
+    <rect x="0" y="80" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="103" fill="#38bdf8" font-size="13" font-weight="600">Installed Apps (196)</text>
+    <text x="36" y="143" class="text-body">Devices (1)</text>
+    <text x="36" y="183" class="text-body">Audit &amp; History</text>
+    <text x="36" y="223" class="text-body">Settings</text>
+  </g>
+
+  <!-- Main Content Area: Left Table (750px wide) -->
+  <g transform="translate(244, 85)">
+    <!-- Title & Stats -->
+    <text x="0" y="22" class="text-title">Installed Applications</text>
+    <text x="0" y="44" class="text-body">196 discovered applications • 112 supported via WinGet • 33 updates available</text>
+
+    <!-- Toolbar: Search + Filters -->
+    <g transform="translate(0, 60)">
+      <!-- Search Input -->
+      <rect width="250" height="36" class="input-box" />
+      <circle cx="20" cy="18" r="6" fill="none" stroke="#64748b" stroke-width="1.5" />
+      <line x1="24" y1="22" x2="29" y2="27" stroke="#64748b" stroke-width="1.5" />
+      <text x="36" y="22" class="text-muted">Search name, package ID...</text>
+
+      <!-- Filter: Status -->
+      <g transform="translate(260, 0)">
+        <rect width="135" height="36" class="input-box" />
+        <text x="14" y="22" class="text-body">Status: <tspan fill="#f8fafc">All (196)</tspan></text>
+        <path d="M 115 15 L 120 20 L 125 15 Z" fill="#64748b" />
+      </g>
+
+      <!-- Filter: Source -->
+      <g transform="translate(405, 0)">
+        <rect width="130" height="36" class="input-box" />
+        <text x="14" y="22" class="text-body">Source: <tspan fill="#f8fafc">All</tspan></text>
+        <path d="M 110 15 L 115 20 L 120 15 Z" fill="#64748b" />
+      </g>
+
+      <!-- Filter Quick Toggles -->
+      <g transform="translate(545, 4)">
+        <rect width="90" height="28" class="badge-update" />
+        <text x="590" y="21" fill="#f59e0b" class="text-badge">Updates (33)</text>
+      </g>
+    </g>
+
+    <!-- Applications Table Container -->
+    <g transform="translate(0, 110)">
+      <rect width="640" height="580" class="card" />
+
+      <!-- Table Header (Sortable) -->
+      <text x="16" y="26" class="text-muted">APPLICATION ↕</text>
+      <text x="195" y="26" class="text-muted">PACKAGE ID</text>
+      <text x="330" y="26" class="text-muted">VERSION ↕</text>
+      <text x="430" y="26" class="text-muted">STATUS ↕</text>
+      <text x="560" y="26" class="text-muted">SOURCE</text>
+      <line x1="16" y1="36" x2="624" y2="36" class="row-divider" />
+
+      <!-- Row 1: Git (Selected Row) -->
+      <rect x="2" y="38" width="636" height="52" class="row-selected" />
+      <g transform="translate(16, 48)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Git for Windows</text>
+        <text x="0" y="30" class="text-muted">Git installer</text>
+        <text x="180" y="22" fill="#38bdf8" font-size="12">Git.Git</text>
+        <text x="314" y="22" class="text-body">2.50.0.2</text>
+        <!-- Update Available Badge -->
+        <rect x="414" y="8" width="100" height="20" class="badge-update" />
+        <text x="464" y="22" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="90" x2="624" y2="90" class="row-divider" />
+
+      <!-- Row 2: 7-Zip -->
+      <g transform="translate(16, 100)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">7-Zip 24.09 (x64)</text>
+        <text x="0" y="30" class="text-muted">Archive tool</text>
+        <text x="180" y="22" class="text-body">7zip.7zip</text>
+        <text x="314" y="22" class="text-body">24.09</text>
+        <rect x="414" y="8" width="100" height="20" class="badge-update" />
+        <text x="464" y="22" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="142" x2="624" y2="142" class="row-divider" />
+
+      <!-- Row 3: Python 3.14 (Supported & Up to date) -->
+      <g transform="translate(16, 152)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Python 3.14.0</text>
+        <text x="0" y="30" class="text-muted">Programming language</text>
+        <text x="180" y="22" class="text-body">Python.Python.3.14</text>
+        <text x="314" y="22" class="text-body">3.14.0</text>
+        <rect x="414" y="8" width="85" height="20" class="badge-supported" />
+        <text x="456" y="22" fill="#10b981" class="text-badge">Supported</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="194" x2="624" y2="194" class="row-divider" />
+
+      <!-- Row 4: Google Chrome (ARP / Unsupported) -->
+      <g transform="translate(16, 204)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Google Chrome</text>
+        <text x="0" y="30" class="text-muted">Web Browser</text>
+        <text x="180" y="22" fill="#64748b" font-size="11">ARP\Machine\X86</text>
+        <text x="314" y="22" class="text-body">156.0.8078</text>
+        <rect x="414" y="8" width="85" height="20" class="badge-unsupported" />
+        <text x="456" y="22" fill="#94a3b8" class="text-badge">Unsupported</text>
+        <text x="544" y="22" class="text-muted">None</text>
+      </g>
+      <line x1="16" y1="246" x2="624" y2="246" class="row-divider" />
+
+      <!-- Row 5: Node.js -->
+      <g transform="translate(16, 256)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Node.js LTS</text>
+        <text x="0" y="30" class="text-muted">JS Runtime</text>
+        <text x="180" y="22" class="text-body">OpenJS.NodeJS.LTS</text>
+        <text x="314" y="22" class="text-body">24.13.0</text>
+        <rect x="414" y="8" width="100" height="20" class="badge-update" />
+        <text x="464" y="22" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="298" x2="624" y2="298" class="row-divider" />
+
+      <!-- Row 6: ASUS Device Check (Unsupported GUID) -->
+      <g transform="translate(16, 308)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">ASUS Device Check</text>
+        <text x="0" y="30" class="text-muted">OEM Utility</text>
+        <text x="180" y="22" fill="#64748b" font-size="11">{FA325AF9-...}</text>
+        <text x="314" y="22" class="text-body">3.6.0</text>
+        <rect x="414" y="8" width="85" height="20" class="badge-unsupported" />
+        <text x="456" y="22" fill="#94a3b8" class="text-badge">Unsupported</text>
+        <text x="544" y="22" class="text-muted">None</text>
+      </g>
+      <line x1="16" y1="350" x2="624" y2="350" class="row-divider" />
+
+      <!-- Row 7: VLC Media Player -->
+      <g transform="translate(16, 360)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">VLC media player</text>
+        <text x="0" y="30" class="text-muted">Media player</text>
+        <text x="180" y="22" class="text-body">VideoLAN.VLC</text>
+        <text x="314" y="22" class="text-body">3.0.21</text>
+        <rect x="414" y="8" width="100" height="20" class="badge-update" />
+        <text x="464" y="22" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="402" x2="624" y2="402" class="row-divider" />
+
+      <!-- Row 8: Windows Terminal -->
+      <g transform="translate(16, 412)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Windows Terminal</text>
+        <text x="0" y="30" class="text-muted">Terminal emulator</text>
+        <text x="180" y="22" class="text-body">Microsoft.Terminal</text>
+        <text x="314" y="22" class="text-body">1.24.12741</text>
+        <rect x="414" y="8" width="100" height="20" class="badge-update" />
+        <text x="464" y="22" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+      <line x1="16" y1="454" x2="624" y2="454" class="row-divider" />
+
+      <!-- Row 9: VS Code (Supported & Up to date) -->
+      <g transform="translate(16, 464)">
+        <text x="0" y="16" fill="#f8fafc" font-size="13" font-weight="600">Visual Studio Code</text>
+        <text x="0" y="30" class="text-muted">Code Editor</text>
+        <text x="180" y="22" class="text-body">Microsoft.VSCode</text>
+        <text x="314" y="22" class="text-body">1.89.0</text>
+        <rect x="414" y="8" width="85" height="20" class="badge-supported" />
+        <text x="456" y="22" fill="#10b981" class="text-badge">Supported</text>
+        <text x="544" y="22" class="text-body">winget</text>
+      </g>
+
+      <!-- Pagination Footer -->
+      <g transform="translate(16, 540)">
+        <line x1="0" y1="0" x2="608" y2="0" class="row-divider" />
+        <text x="0" y="24" class="text-muted">Showing 1 to 9 of 196 items</text>
+        <g transform="translate(380, 8)">
+          <rect width="28" height="24" class="btn-secondary" />
+          <text x="14" y="16" fill="#94a3b8" font-size="11" text-anchor="middle">&lt;</text>
+          <rect x="34" y="0" width="28" height="24" fill="#0284c7" rx="4" />
+          <text x="48" y="16" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">1</text>
+          <rect x="68" y="0" width="28" height="24" class="btn-secondary" />
+          <text x="82" y="16" fill="#94a3b8" font-size="11" text-anchor="middle">2</text>
+          <rect x="102" y="0" width="28" height="24" class="btn-secondary" />
+          <text x="116" y="16" fill="#94a3b8" font-size="11" text-anchor="middle">3</text>
+          <text x="140" y="16" fill="#64748b" font-size="11">...</text>
+          <rect x="156" y="0" width="28" height="24" class="btn-secondary" />
+          <text x="170" y="16" fill="#94a3b8" font-size="11" text-anchor="middle">22</text>
+          <rect x="190" y="0" width="28" height="24" class="btn-secondary" />
+          <text x="204" y="16" fill="#94a3b8" font-size="11" text-anchor="middle">&gt;</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Application Details Flyout Panel (Right Side: 275px wide) -->
+    <g transform="translate(655, 110)">
+      <rect width="280" height="580" class="flyout" />
+      
+      <!-- Panel Header -->
+      <g transform="translate(18, 20)">
+        <text x="0" y="16" class="text-heading">Application Details</text>
+        <text x="235" y="16" fill="#64748b" font-size="14" cursor="pointer">✕</text>
+        <line x1="0" y1="28" x2="244" y2="28" class="row-divider" />
+      </g>
+
+      <!-- App Identity -->
+      <g transform="translate(18, 60)">
+        <!-- App Icon Placeholder -->
+        <circle cx="20" cy="20" r="18" fill="#0369a1" />
+        <text x="20" y="25" fill="#ffffff" font-size="14" font-weight="700" text-anchor="middle">G</text>
+        <text x="48" y="16" fill="#f8fafc" font-size="14" font-weight="700">Git for Windows</text>
+        <text x="48" y="32" class="text-muted">Git.Git</text>
+      </g>
+
+      <!-- Status Indicator Pill -->
+      <g transform="translate(18, 115)">
+        <rect width="115" height="22" class="badge-update" />
+        <text x="57" y="15" fill="#f59e0b" class="text-badge">Update Available</text>
+        <text x="125" y="15" class="text-muted">Source: winget</text>
+      </g>
+
+      <!-- Version Diff Box -->
+      <g transform="translate(18, 150)">
+        <rect width="244" height="68" fill="#0f172a" rx="6" stroke="#334155" stroke-width="1" />
+        <text x="14" y="22" class="text-muted">CURRENT VERSION</text>
+        <text x="14" y="44" class="text-stat" font-size="16">2.50.0.2</text>
+
+        <text x="130" y="32" fill="#38bdf8" font-size="16">→</text>
+
+        <text x="150" y="22" fill="#38bdf8" font-size="10" font-weight="600">NEW VERSION</text>
+        <text x="150" y="44" fill="#38bdf8" font-size="16" font-weight="700">2.56.0.3</text>
+      </g>
+
+      <!-- Primary Action Buttons -->
+      <g transform="translate(18, 230)">
+        <rect width="244" height="36" class="btn-primary" />
+        <text x="122" y="22" class="btn-primary-text">Approve &amp; Queue Update</text>
+
+        <rect y="44" width="244" height="32" class="btn-secondary" />
+        <text x="122" y="64" class="btn-secondary-text">Ignore This Version</text>
+      </g>
+
+      <line x1="18" y1="322" x2="262" y2="322" class="row-divider" />
+
+      <!-- Detailed Technical Metadata -->
+      <g transform="translate(18, 336)">
+        <text x="0" y="14" fill="#f8fafc" font-size="12" font-weight="600">Package Metadata</text>
+        
+        <text x="0" y="38" class="text-muted">Publisher</text>
+        <text x="0" y="52" class="text-body">The Git Development Community</text>
+
+        <text x="0" y="74" class="text-muted">Architecture</text>
+        <text x="0" y="88" class="text-body">x64 (64-bit)</text>
+
+        <text x="0" y="110" class="text-muted">Install Scope</text>
+        <text x="0" y="124" class="text-body">Machine / System-wide</text>
+
+        <text x="0" y="146" class="text-muted">Silent Upgrade Support</text>
+        <text x="0" y="160" fill="#10b981" font-size="12">Verified (--silent --exact)</text>
+
+        <text x="0" y="182" class="text-muted">Last Scanned</text>
+        <text x="0" y="196" class="text-body">Today at 14:52:15</text>
+      </g>
+    </g>
+  </g>
+</svg>

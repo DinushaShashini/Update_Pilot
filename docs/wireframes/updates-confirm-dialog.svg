@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .backdrop { fill: #020617; fill-opacity: 0.75; }
+      .modal { fill: #1e293b; stroke: #38bdf8; stroke-width: 1.5; rx: 12px; filter: drop-shadow(0 20px 25px rgba(0,0,0,0.7)); }
+      .diff-box { fill: #0f172a; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 700; }
+      .text-heading { fill: #f8fafc; font-size: 14px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .btn-primary { fill: #0284c7; rx: 6px; cursor: pointer; }
+      .btn-primary-text { fill: #ffffff; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .btn-secondary { fill: #334155; rx: 6px; cursor: pointer; }
+      .btn-secondary-text { fill: #cbd5e1; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .badge-shield { fill: #0c4a6e; stroke: #0284c7; stroke-width: 1; rx: 12px; }
+    </style>
+  </defs>
+
+  <!-- Background Screen (Dimmed Underlay) -->
+  <rect width="1200" height="820" class="bg" />
+  <!-- Underlay Dim Backdrop -->
+  <rect width="1200" height="820" class="backdrop" />
+
+  <!-- Center Confirmation Dialog Modal (560px x 480px) -->
+  <g transform="translate(320, 160)">
+    <!-- Modal Card Box -->
+    <rect width="560" height="490" class="modal" />
+
+    <!-- Dialog Header -->
+    <g transform="translate(32, 32)">
+      <!-- Shield / Approval Icon -->
+      <circle cx="16" cy="16" r="16" fill="#0369a1" />
+      <path d="M 16 7 L 24 10 L 24 18 C 24 23 16 26 16 26 C 16 26 8 23 8 18 L 8 10 Z" fill="none" stroke="#ffffff" stroke-width="1.8" />
+      <path d="M 12 16 L 15 19 L 20 13" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" />
+
+      <text x="44" y="16" class="text-title">Approve Software Update</text>
+      <text x="44" y="34" class="text-body">Explicit user confirmation is required before the agent installs updates.</text>
+      <!-- Close X -->
+      <text x="480" y="16" fill="#64748b" font-size="16" cursor="pointer">✕</text>
+    </g>
+
+    <line x1="32" y1="88" x2="528" y2="88" stroke="#334155" stroke-width="1" />
+
+    <!-- Target Details Box -->
+    <g transform="translate(32, 108)">
+      <rect width="496" height="155" class="diff-box" />
+
+      <!-- Package & Device info -->
+      <text x="20" y="28" class="text-muted">PACKAGE</text>
+      <text x="20" y="48" fill="#f8fafc" font-size="16" font-weight="700">Git for Windows</text>
+      <text x="160" y="48" fill="#38bdf8" font-size="13">Git.Git</text>
+
+      <text x="320" y="28" class="text-muted">TARGET DEVICE</text>
+      <text x="320" y="48" fill="#f8fafc" font-size="14" font-weight="600">DESKTOP-DINUSHA</text>
+
+      <line x1="20" y1="68" x2="476" y2="68" stroke="#1e293b" stroke-width="1" />
+
+      <!-- Version Diff Columns -->
+      <g transform="translate(20, 85)">
+        <text x="0" y="14" class="text-muted">CURRENT VERSION</text>
+        <text x="0" y="38" class="text-body" font-size="16" font-weight="600">2.50.0.2</text>
+
+        <!-- Arrow -->
+        <circle cx="160" cy="24" r="14" fill="#0284c7" fill-opacity="0.2" />
+        <path d="M 154 24 L 166 24 M 161 19 L 166 24 L 161 29" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" />
+
+        <text x="220" y="14" fill="#38bdf8" font-size="11" font-weight="600">NEW TARGET VERSION</text>
+        <text x="220" y="38" fill="#38bdf8" font-size="18" font-weight="700">2.56.0.3</text>
+        <text x="340" y="38" class="text-muted">(WinGet Community)</text>
+      </g>
+    </g>
+
+    <!-- Execution Plan Notice -->
+    <g transform="translate(32, 280)">
+      <rect width="496" height="50" fill="#0c4a6e" fill-opacity="0.3" rx="6" stroke="#0284c7" stroke-width="1" />
+      <circle cx="20" cy="25" r="7" fill="#0284c7" />
+      <text x="20" y="29" fill="#ffffff" font-size="10" font-weight="700" text-anchor="middle">i</text>
+      <text x="36" y="22" fill="#e0f2fe" font-size="12" font-weight="600">Execution Policy:</text>
+      <text x="36" y="38" fill="#94a3b8" font-size="11">Command: <tspan fill="#38bdf8" font-family="'Consolas', monospace">winget upgrade --id Git.Git --exact</tspan> will execute silently upon next agent poll.</text>
+    </g>
+
+    <!-- Checkbox Acceptance -->
+    <g transform="translate(32, 350)">
+      <rect width="18" height="18" rx="3" fill="#0284c7" />
+      <path d="M 4 9 L 7 13 L 14 5" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+      <text x="28" y="14" fill="#e2e8f0" font-size="13">I authorize UpdatePilot to apply this update to DESKTOP-DINUSHA.</text>
+      <text x="28" y="32" class="text-muted">This action will be permanently recorded in your audit logs.</text>
+    </g>
+
+    <line x1="32" y1="400" x2="528" y2="400" stroke="#334155" stroke-width="1" />
+
+    <!-- Dialog Action Buttons -->
+    <g transform="translate(32, 420)">
+      <!-- Cancel -->
+      <rect width="110" height="42" class="btn-secondary" />
+      <text x="55" y="26" class="btn-secondary-text">Cancel</text>
+
+      <!-- Confirm & Approve -->
+      <g transform="translate(266, 0)">
+        <rect width="230" height="42" class="btn-primary" />
+        <path d="M 24 21 L 28 25 L 36 17" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+        <text x="125" y="26" class="btn-primary-text">Confirm &amp; Approve Update</text>
+      </g>
+    </g>
+  </g>
+</svg>

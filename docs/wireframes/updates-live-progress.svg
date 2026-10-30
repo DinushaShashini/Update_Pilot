@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .console-box { fill: #020617; stroke: #334155; stroke-width: 1; rx: 6px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-heading { fill: #f8fafc; font-size: 14px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .text-mono { fill: #e2e8f0; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; }
+      .step-completed { fill: #064e3b; stroke: #10b981; stroke-width: 2; }
+      .step-active { fill: #0c4a6e; stroke: #38bdf8; stroke-width: 2; }
+      .step-pending { fill: #1e293b; stroke: #475569; stroke-width: 2; }
+      .step-line-active { stroke: #10b981; stroke-width: 2; }
+      .step-line-pending { stroke: #334155; stroke-width: 2; }
+      .btn-secondary { fill: #334155; rx: 6px; cursor: pointer; }
+      .btn-secondary-text { fill: #cbd5e1; font-size: 12px; font-weight: 600; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#94a3b8" font-size="13">Device: <tspan fill="#f8fafc" font-weight="600">DESKTOP-DINUSHA</tspan></text>
+  <circle cx="430" cy="30" r="4" fill="#38bdf8" />
+  <text x="440" y="34" fill="#38bdf8" font-size="11" font-weight="600">Applying Update in Real Time</text>
+
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <text x="36" y="23" class="text-body">Overview</text>
+    <rect x="0" y="40" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="63" fill="#38bdf8" font-size="13" font-weight="600">Updates (Active: 1)</text>
+    <text x="36" y="103" class="text-body">Installed Apps (196)</text>
+    <text x="36" y="143" class="text-body">Devices (1)</text>
+    <text x="36" y="183" class="text-body">Audit &amp; History</text>
+    <text x="36" y="223" class="text-body">Settings</text>
+  </g>
+
+  <!-- Main Content Area -->
+  <g transform="translate(244, 85)">
+    <!-- Back breadcrumb & Title -->
+    <text x="0" y="15" fill="#38bdf8" font-size="12">← Back to Available Updates</text>
+    <text x="0" y="44" class="text-title">Live Update Progress: Git for Windows</text>
+    <text x="0" y="66" class="text-body">Package: Git.Git • Target Version: 2.56.0.3 • Target Host: DESKTOP-DINUSHA</text>
+
+    <!-- Execution Stepper Card (928px wide) -->
+    <g transform="translate(0, 85)">
+      <rect width="928" height="110" class="card" />
+
+      <!-- Step 1: Approved -->
+      <g transform="translate(60, 35)">
+        <circle cx="18" cy="18" r="14" class="step-completed" />
+        <path d="M 12 18 L 16 22 L 24 14" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+        <text x="18" y="48" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">Approved</text>
+        <text x="18" y="62" fill="#10b981" font-size="10" text-anchor="middle">Completed</text>
+      </g>
+
+      <!-- Line 1 to 2 -->
+      <line x1="102" y1="53" x2="228" y2="53" class="step-line-active" />
+
+      <!-- Step 2: Agent Dispatched -->
+      <g transform="translate(230, 35)">
+        <circle cx="18" cy="18" r="14" class="step-completed" />
+        <path d="M 12 18 L 16 22 L 24 14" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+        <text x="18" y="48" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">Agent Polled</text>
+        <text x="18" y="62" fill="#10b981" font-size="10" text-anchor="middle">Instruction verified</text>
+      </g>
+
+      <!-- Line 2 to 3 -->
+      <line x1="272" y1="53" x2="398" y2="53" class="step-line-active" />
+
+      <!-- Step 3: Downloading -->
+      <g transform="translate(400, 35)">
+        <circle cx="18" cy="18" r="14" class="step-completed" />
+        <path d="M 12 18 L 16 22 L 24 14" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" />
+        <text x="18" y="48" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">Downloaded</text>
+        <text x="18" y="62" fill="#10b981" font-size="10" text-anchor="middle">Hash SHA256 OK</text>
+      </g>
+
+      <!-- Line 3 to 4 -->
+      <line x1="442" y1="53" x2="568" y2="53" class="step-line-active" />
+
+      <!-- Step 4: Installing (Active) -->
+      <g transform="translate(570, 35)">
+        <circle cx="18" cy="18" r="14" class="step-active" />
+        <circle cx="18" cy="18" r="7" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="16 8" />
+        <text x="18" y="48" fill="#38bdf8" font-size="12" font-weight="700" text-anchor="middle">Installing...</text>
+        <text x="18" y="62" fill="#38bdf8" font-size="10" text-anchor="middle">winget upgrade in progress</text>
+      </g>
+
+      <!-- Line 4 to 5 -->
+      <line x1="612" y1="53" x2="738" y2="53" class="step-line-pending" />
+
+      <!-- Step 5: Post-verification -->
+      <g transform="translate(740, 35)">
+        <circle cx="18" cy="18" r="14" class="step-pending" />
+        <circle cx="18" cy="18" r="4" fill="#475569" />
+        <text x="18" y="48" class="text-body" text-anchor="middle">Post-Verify</text>
+        <text x="18" y="62" class="text-muted" text-anchor="middle">Confirm v2.56.0.3</text>
+      </g>
+    </g>
+
+    <!-- Real-time Console Log Stream Panel -->
+    <g transform="translate(0, 215)">
+      <rect width="928" height="470" class="card" />
+
+      <!-- Terminal Header -->
+      <g transform="translate(20, 20)">
+        <circle cx="8" cy="8" r="5" fill="#ef4444" />
+        <circle cx="24" cy="8" r="5" fill="#f59e0b" />
+        <circle cx="40" cy="8" r="5" fill="#10b981" />
+        <text x="60" y="12" fill="#94a3b8" font-family="'Consolas', monospace" font-size="12">DESKTOP-DINUSHA • agent execution log stream (winget upgrade)</text>
+        <text x="760" y="12" fill="#38bdf8" font-family="'Consolas', monospace" font-size="11">● LIVE STREAMING</text>
+      </g>
+
+      <line x1="0" y1="42" x2="928" y2="42" stroke="#334155" stroke-width="1" />
+
+      <!-- Console Log Terminal Box -->
+      <g transform="translate(20, 58)">
+        <rect width="888" height="340" class="console-box" />
+
+        <g transform="translate(16, 26)">
+          <text x="0" y="0" fill="#64748b" font-family="'Consolas', monospace" font-size="11">[17:15:02] [AGENT] Received verified action: UPDATE_PACKAGE (Action ID: act_92ba481f)</text>
+          <text x="0" y="22" fill="#64748b" font-family="'Consolas', monospace" font-size="11">[17:15:02] [AGENT] Verifying cryptographic approval signature against backend public key... OK</text>
+          <text x="0" y="44" fill="#64748b" font-family="'Consolas', monospace" font-size="11">[17:15:03] [AGENT] Spawning subprocess: winget.exe upgrade --id Git.Git --exact --silent</text>
+          <text x="0" y="70" fill="#38bdf8" font-family="'Consolas', monospace" font-size="12">&gt; Found Git [Git.Git] Version 2.56.0.3</text>
+          <text x="0" y="92" fill="#e2e8f0" font-family="'Consolas', monospace" font-size="12">&gt; Downloading https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.3/Git-2.56.0.3-64-bit.exe</text>
+          <text x="0" y="114" fill="#10b981" font-family="'Consolas', monospace" font-size="12">&gt; [████████████████████████████████████████] 100% (64.2 MB / 64.2 MB)</text>
+          <text x="0" y="136" fill="#e2e8f0" font-family="'Consolas', monospace" font-size="12">&gt; Successfully verified installer hash.</text>
+          <text x="0" y="158" fill="#e2e8f0" font-family="'Consolas', monospace" font-size="12">&gt; Starting package install...</text>
+          <text x="0" y="180" fill="#f59e0b" font-family="'Consolas', monospace" font-size="12">&gt; Executing silent installer in elevated session...</text>
+          <text x="0" y="206" fill="#38bdf8" font-family="'Consolas', monospace" font-size="12">&gt; Please wait while components are updated... ⣾</text>
+        </g>
+      </g>
+
+      <!-- Footer Action & Elapsed Time -->
+      <g transform="translate(20, 420)">
+        <text x="0" y="18" fill="#94a3b8" font-size="12">Elapsed Time: <tspan fill="#f8fafc" font-weight="600">42 seconds</tspan> • Estimated time remaining: 15 seconds</text>
+        <g transform="translate(740, 0)">
+          <rect width="148" height="32" class="btn-secondary" />
+          <text x="74" y="20" class="btn-secondary-text">Keep in Background</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

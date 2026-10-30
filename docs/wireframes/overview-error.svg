@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <!-- Definitions & Styles -->
+  <defs>
+    <style>
+      .bg { fill: #0f172a; }
+      .sidebar { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .header { fill: #1e293b; stroke: #334155; stroke-width: 1; }
+      .card { fill: #1e293b; stroke: #334155; stroke-width: 1; rx: 8px; }
+      .card-error { fill: #1e293b; stroke: #ef4444; stroke-width: 1.5; rx: 8px; }
+      .text-title { fill: #f8fafc; font-size: 18px; font-weight: 600; }
+      .text-heading { fill: #f8fafc; font-size: 14px; font-weight: 600; }
+      .text-body { fill: #94a3b8; font-size: 13px; }
+      .text-muted { fill: #64748b; font-size: 11px; }
+      .text-stat { fill: #f8fafc; font-size: 26px; font-weight: 700; }
+      .text-badge { font-size: 11px; font-weight: 600; }
+      .btn-danger { fill: #dc2626; rx: 6px; cursor: pointer; }
+      .btn-danger-text { fill: #ffffff; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .btn-outline { fill: #1e293b; stroke: #475569; stroke-width: 1; rx: 6px; cursor: pointer; }
+      .btn-outline-text { fill: #cbd5e1; font-size: 13px; font-weight: 600; text-anchor: middle; }
+      .banner-error { fill: #450a0a; stroke: #ef4444; stroke-width: 1; rx: 6px; }
+      .badge-danger { fill: #7f1d1d; stroke: #ef4444; stroke-width: 1; rx: 12px; }
+      .row-divider { stroke: #334155; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="820" class="bg" />
+
+  <!-- Top Navigation Header -->
+  <rect x="0" y="0" width="1200" height="60" class="header" />
+  <circle cx="36" cy="30" r="14" fill="#0284c7" />
+  <path d="M 30 30 L 42 22 L 38 30 L 42 38 Z" fill="#ffffff" />
+  <text x="60" y="35" fill="#f8fafc" font-size="16" font-weight="700" letter-spacing="0.5">UpdatePilot</text>
+  <text x="155" y="35" class="text-muted">|</text>
+  <text x="170" y="35" fill="#94a3b8" font-size="13">Device: <tspan fill="#f8fafc" font-weight="600">DESKTOP-DINUSHA</tspan></text>
+  <circle cx="430" cy="30" r="4" fill="#ef4444" />
+  <text x="440" y="34" fill="#ef4444" font-size="11" font-weight="600">Agent Connection Failed</text>
+
+  <!-- Header Right Actions: Retry Button -->
+  <g transform="translate(930, 13)">
+    <rect width="130" height="34" class="btn-danger" />
+    <text x="65" y="22" class="btn-danger-text">Retry scan</text>
+  </g>
+  <circle cx="1090" cy="30" r="16" fill="#334155" />
+  <text x="1090" y="35" fill="#f8fafc" font-size="12" font-weight="600" text-anchor="middle">DU</text>
+
+  <!-- Left Sidebar -->
+  <rect x="0" y="60" width="220" height="760" class="sidebar" />
+  <g transform="translate(16, 85)">
+    <rect x="0" y="0" width="188" height="36" fill="#0284c7" fill-opacity="0.2" rx="6" stroke="#0284c7" stroke-width="1" />
+    <text x="36" y="23" fill="#38bdf8" font-size="13" font-weight="600">Overview</text>
+    <text x="36" y="63" class="text-body">Updates (Stale)</text>
+    <text x="36" y="103" class="text-body">Installed Apps (196)</text>
+    <text x="36" y="143" class="text-body">Devices (1)</text>
+    <text x="36" y="183" class="text-body">Audit &amp; History</text>
+    <text x="36" y="223" class="text-body">Settings</text>
+  </g>
+
+  <!-- Main Content Area -->
+  <g transform="translate(244, 85)">
+    <text x="0" y="22" class="text-title">Dashboard Overview</text>
+    <text x="0" y="44" class="text-body">Host software inventory and update approval center</text>
+
+    <!-- Error Alert Banner -->
+    <g transform="translate(0, 58)">
+      <rect width="928" height="54" class="banner-error" />
+      <circle cx="28" cy="27" r="12" fill="#ef4444" />
+      <text x="28" y="32" fill="#ffffff" font-size="14" font-weight="700" text-anchor="middle">!</text>
+      <text x="52" y="24" fill="#fee2e2" font-size="13" font-weight="600">Scan Failed: WinGet encountered error 0x8A150011 (Failed when opening source(s))</text>
+      <text x="52" y="42" fill="#fca5a5" font-size="11">The Windows agent could not reach upstream package catalogs. Check internet connection or run 'winget source reset'.</text>
+      <g transform="translate(800, 11)">
+        <rect width="105" height="30" class="btn-outline" />
+        <text x="52" y="20" class="btn-outline-text">Troubleshoot</text>
+      </g>
+    </g>
+
+    <!-- 5 Summary Metric Cards (Error/Warning States) -->
+    <!-- Card 1 -->
+    <g transform="translate(0, 125)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Total Apps</text>
+      <text x="16" y="66" class="text-stat">196</text>
+      <text x="16" y="86" class="text-muted">Cached from previous scan</text>
+    </g>
+
+    <!-- Card 2 -->
+    <g transform="translate(188, 125)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Updates Available</text>
+      <text x="16" y="66" fill="#f59e0b" font-size="26" font-weight="700">?</text>
+      <text x="16" y="86" fill="#f59e0b" font-size="11">Catalog sync incomplete</text>
+    </g>
+
+    <!-- Card 3 -->
+    <g transform="translate(376, 125)">
+      <rect width="176" height="100" class="card" />
+      <text x="16" y="28" class="text-body">Unsupported</text>
+      <text x="16" y="66" class="text-stat">84</text>
+      <text x="16" y="86" class="text-muted">Legacy ARP / Store MSIX</text>
+    </g>
+
+    <!-- Card 4: Last Scan (Error Card) -->
+    <g transform="translate(564, 125)">
+      <rect width="176" height="100" class="card-error" />
+      <text x="16" y="28" fill="#f87171" font-size="13" font-weight="600">Last Scan</text>
+      <text x="16" y="62" fill="#ef4444" font-size="17" font-weight="700">Failed</text>
+      <rect x="16" y="72" width="70" height="18" class="badge-danger" />
+      <text x="51" y="85" fill="#f87171" class="text-badge" text-anchor="middle">0x8A150011</text>
+    </g>
+
+    <!-- Card 5: Agent Status (Warning Card) -->
+    <g transform="translate(752, 125)">
+      <rect width="176" height="100" class="card-error" />
+      <text x="16" y="28" fill="#f87171" font-size="13" font-weight="600">Agent Status</text>
+      <circle cx="24" cy="54" r="5" fill="#ef4444" />
+      <text x="36" y="58" fill="#ef4444" font-size="16" font-weight="700">Error</text>
+      <text x="16" y="86" fill="#fca5a5" font-size="11">Heartbeat timed out</text>
+    </g>
+
+    <!-- Error Diagnostics & Stale Inventory Notice -->
+    <g transform="translate(0, 240)">
+      <rect width="552" height="465" class="card" />
+      <text x="20" y="32" class="text-heading">Diagnostics &amp; Raw Error Trace</text>
+      <line x1="20" y1="46" x2="532" y2="46" class="row-divider" />
+
+      <!-- Terminal Stderr Output Box -->
+      <g transform="translate(20, 65)">
+        <rect width="512" height="160" fill="#020617" stroke="#334155" stroke-width="1" rx="6" />
+        <text x="16" y="26" fill="#ef4444" font-family="'Consolas', monospace" font-size="11">[winget stderr] 2026-10-29T14:43:53Z</text>
+        <text x="16" y="48" fill="#f87171" font-family="'Consolas', monospace" font-size="11">Failed when opening source(s); try the 'source reset' command.</text>
+        <text x="16" y="70" fill="#94a3b8" font-family="'Consolas', monospace" font-size="11">Exit code: 1 (0x8A150011)</text>
+        <text x="16" y="92" fill="#94a3b8" font-family="'Consolas', monospace" font-size="11">Process: C:\Users\Dinusha\...\winget.exe upgrade</text>
+        <text x="16" y="114" fill="#94a3b8" font-family="'Consolas', monospace" font-size="11">Flags: --disable-interactivity --accept-source-agreements</text>
+      </g>
+
+      <!-- Recovery Steps -->
+      <text x="20" y="260" class="text-heading">Recommended Recovery Steps:</text>
+      <text x="20" y="285" fill="#e2e8f0" font-size="12">1. Check host internet connectivity on DESKTOP-DINUSHA.</text>
+      <text x="20" y="308" fill="#e2e8f0" font-size="12">2. In an Administrator terminal, run: <tspan fill="#38bdf8" font-family="'Consolas', monospace">winget source reset --force</tspan></text>
+      <text x="20" y="331" fill="#e2e8f0" font-size="12">3. Verify that the Python agent process is currently running.</text>
+      <text x="20" y="354" fill="#e2e8f0" font-size="12">4. Click "Retry scan" once network sources are restored.</text>
+
+      <g transform="translate(20, 395)">
+        <rect width="140" height="36" class="btn-danger" />
+        <text x="70" y="23" class="btn-danger-text">Retry scan</text>
+      </g>
+    </g>
+
+    <!-- Recent Activity showing Error Event -->
+    <g transform="translate(572, 240)">
+      <rect width="356" height="465" class="card" />
+      <text x="20" y="32" class="text-heading">Recent Activity</text>
+      <line x1="20" y1="46" x2="336" y2="46" class="row-divider" />
+
+      <!-- Error Event Item -->
+      <g transform="translate(20, 65)">
+        <circle cx="10" cy="10" r="4" fill="#ef4444" />
+        <text x="24" y="10" fill="#f87171" font-size="12" font-weight="600">Scan Failed</text>
+        <text x="24" y="24" class="text-muted">Exit code 0x8A150011 (Source error)</text>
+        <text x="24" y="38" fill="#64748b" font-size="10">Just now</text>
+      </g>
+      <line x1="20" y1="115" x2="336" y2="115" class="row-divider" />
+
+      <!-- Past Event -->
+      <g transform="translate(20, 125)">
+        <circle cx="10" cy="10" r="4" fill="#10b981" />
+        <text x="24" y="10" fill="#f8fafc" font-size="12" font-weight="600">Previous Scan Succeeded</text>
+        <text x="24" y="24" class="text-muted">Cached baseline preserved</text>
+        <text x="24" y="38" fill="#64748b" font-size="10">2 hours ago</text>
+      </g>
+      <line x1="20" y1="175" x2="336" y2="175" class="row-divider" />
+
+      <!-- Past Event -->
+      <g transform="translate(20, 185)">
+        <circle cx="10" cy="10" r="4" fill="#0284c7" />
+        <text x="24" y="10" fill="#f8fafc" font-size="12" font-weight="600">Update Installed: Notepad++</text>
+        <text x="24" y="24" class="text-muted">Upgraded to v8.6.5</text>
+        <text x="24" y="38" fill="#64748b" font-size="10">3 hours ago</text>
+      </g>
+    </g>
+  </g>
+</svg>
