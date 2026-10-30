@@ -570,3 +570,272 @@ JobId,JobType,PackageId,Status,ExitCode,VersionBefore,VersionAfter,Operator,Time
 "44444444-4444-4444-4444-444444444444","UPDATE","Zoom.Zoom.EXE","REJECTED",,"5.10.7","7.2.1","Dinusha","2026-10-29T17:15:00Z"
 ```
 - **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+
+---
+
+## 9. Agent-Facing REST API (`/api/v1/agent`)
+
+The agent-facing API facilitates communication between the local Python Windows agent running on the user's PC and the UpdatePilot backend.
+
+### 9.1 Agent Authentication & Security Model
+1. **Bearer Token Authentication**:
+   - Every agent request (except initial pairing) must transmit the permanent device secret in the header:
+     `Authorization: Bearer <AGENT_DEVICE_TOKEN>`
+2. **Backend Hash Verification**:
+   - The backend **never** stores or compares plaintext agent tokens.
+   - Upon receiving the token, the backend computes `SHA-256(AGENT_DEVICE_TOKEN)` and queries `agent_credentials` where `token_hash = computed_hash`.
+3. **Revocation & Decommissioning Handling**:
+   - If `agent_credentials.revoked_at IS NOT NULL` or `devices.status = 'REVOKED'`, the request is immediately rejected with:
+     ```json
+     {
+       "success": false,
+       "error": {
+         "code": "DEVICE_REVOKED",
+         "message": "This agent pairing has been revoked by the device owner.",
+         "action_required": "PURGE_LOCAL_CREDENTIALS"
+       }
+     }
+     ```
+   - Upon encountering `DEVICE_REVOKED` (HTTP 401), the Python agent **must** immediately delete its locally cached configuration and enter an unconfigured, dormant state.
+4. **Strict Job & Device Ownership Validation**:
+   - The backend infers `device_id` directly from the authenticated token hash.
+   - When claiming jobs, submitting logs, or reporting progress, the backend verifies that `job.device_id == authenticated_device_id`.
+   - Attempts to access or mutate tasks belonging to other machines are rejected with `403 Forbidden` (`JOB_OWNERSHIP_MISMATCH`).
+
+---
+
+### 9.2 Device Pairing (`pair`)
+Initial onboarding exchange: redeems a short-lived user pairing token for a permanent device identity and secret token.
+- **Method & Path**: `POST /api/v1/agent/pair`
+- **Auth**: Public (Authenticated by one-time pairing token)
+- **Request Body**:
+```json
+{
+  "pairing_token": "tok_8f92ab14ce67d0219b",
+  "hardware_uuid": "4C4C4544-004E-5210-8054-C3C04F343233",
+  "computer_name": "DESKTOP-DINUSHA",
+  "os_version": "Windows 11 Home Single Language",
+  "os_build": "26200",
+  "agent_version": "1.0.0",
+  "winget_version": "v1.29.380"
+}
+```
+- **Backend Validation**:
+  - Computes `SHA-256(pairing_token)`.
+  - Verifies token exists, has not expired (`pairing_expires_at > NOW()`), and has not been redeemed.
+  - Binds the device to the user who generated the token.
+  - Generates a cryptographically random permanent token (32 bytes / 64 hex characters), hashes it with SHA-256, and stores the hash in `agent_credentials.token_hash`.
+- **Success Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "device_id": "22222222-2222-2222-2222-222222222222",
+    "agent_token": "agt_9f82ab14e76c01283d59a0f443b7e829",
+    "heartbeat_interval_seconds": 60,
+    "message": "Device successfully paired. Store agent_token securely in host DPAPI / protected storage."
+  }
+}
+```
+- **Error Codes**: `400 Bad Request` (missing hardware info), `403 Forbidden` (`TOKEN_EXPIRED_OR_INVALID`).
+
+---
+
+### 9.3 Agent Heartbeat (`heartbeat`)
+Periodic ping sent by the agent (e.g. every 60 seconds) to update online status and report runtime metrics.
+- **Method & Path**: `POST /api/v1/agent/heartbeat`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "agent_version": "1.0.0",
+  "winget_version": "v1.29.380",
+  "os_build": "26200",
+  "uptime_seconds": 14200
+}
+```
+- **Backend Validation**:
+  - Authenticates device token hash; verifies device is not revoked.
+  - Updates `devices.last_heartbeat_at = NOW()` and `devices.status = 'ONLINE'`.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "acknowledged_at": "2026-10-30T14:40:00Z",
+    "has_pending_jobs": true
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized` (`DEVICE_REVOKED` / `INVALID_TOKEN`).
+
+---
+
+### 9.4 Poll for Pending Jobs (`jobs`)
+Retrieves active tasks in `queued` status waiting for agent pickup on this device.
+- **Method & Path**: `GET /api/v1/agent/jobs`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "jobs": [
+      {
+        "id": "66666666-6666-6666-6666-666666666666",
+        "job_type": "UPDATE_PACKAGE",
+        "package_id": "Git.Git",
+        "command": "winget upgrade --id Git.Git --exact --silent",
+        "target_version": "2.56.0.3",
+        "approved_at": "2026-10-30T14:38:30Z",
+        "approved_by_user": "dinusha@example.com"
+      }
+    ]
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized` (`DEVICE_REVOKED`).
+
+---
+
+### 9.5 Claim a Job (`claim`)
+Atomically claims a queued job, transitioning it from `queued` to `running`.
+- **Method & Path**: `POST /api/v1/agent/jobs/:jobId/claim`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Backend Validation**:
+  - Verifies `job.device_id == authenticated_device.id`.
+  - Verifies `job.status == 'QUEUED'`. Rejects if already claimed or cancelled.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "66666666-6666-6666-6666-666666666666",
+    "status": "RUNNING",
+    "claimed_at": "2026-10-30T14:40:05Z",
+    "execution_timeout_seconds": 1200
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized`, `403 Forbidden` (`JOB_OWNERSHIP_MISMATCH`), `409 Conflict` (`JOB_ALREADY_CLAIMED_OR_TERMINAL`).
+
+---
+
+### 9.6 Report Job Live Progress (`progress`)
+Streams ongoing progress during lengthy downloads or installations for dashboard display.
+- **Method & Path**: `POST /api/v1/agent/jobs/:jobId/progress`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "stage": "DOWNLOADING",
+  "progress_percentage": 75,
+  "message": "Downloading Git-2.56.0.3-64-bit.exe (48.1 MB / 64.2 MB)",
+  "stdout_line": "> [██████████████████████████████      ] 75%"
+}
+```
+- **Backend Validation**:
+  - Verifies `job.device_id == authenticated_device.id` and `job.status == 'RUNNING'`.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "received": true
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+
+---
+
+### 9.7 Submit Scan Results (`scans/results`)
+Transmits parsed inventory discovered from `winget list` and `winget upgrade`.
+- **Method & Path**: `POST /api/v1/agent/scans/:scanId/results`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "exit_code": 0,
+  "discovered_packages": [
+    {
+      "name": "Git for Windows",
+      "package_id": "Git.Git",
+      "installed_version": "2.50.0.2",
+      "available_version": "2.56.0.3",
+      "source": "winget",
+      "is_managed": true
+    },
+    {
+      "name": "Google Chrome",
+      "package_id": "ARP\\Machine\\X86\\Google Chrome",
+      "installed_version": "156.0.8078.48",
+      "available_version": null,
+      "source": null,
+      "is_managed": false
+    }
+  ],
+  "available_upgrades": [
+    {
+      "name": "Git for Windows",
+      "package_id": "Git.Git",
+      "installed_version": "2.50.0.2",
+      "target_version": "2.56.0.3",
+      "source": "winget"
+    }
+  ],
+  "raw_stderr": ""
+}
+```
+- **Backend Processing**:
+  - Synchronizes device `applications` inventory.
+  - Generates or updates `update_previews` in `PENDING_APPROVAL` status for actionable upgrades.
+  - Transitions `scan_jobs` status to `COMPLETED` (or `FAILED` if non-zero exit code).
+  - Logs `SCAN_COMPLETED` in `audit_events`.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "scan_id": "55555555-5555-5555-5555-555555555555",
+    "status": "COMPLETED",
+    "synced_packages_count": 196,
+    "synced_previews_count": 33
+  }
+}
+```
+- **Error Codes**: `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+
+---
+
+### 9.8 Submit Update Execution Result (`update-jobs/results`)
+Transmits the final outcome of an approved `winget upgrade` command execution.
+- **Method & Path**: `POST /api/v1/agent/update-jobs/:jobId/results`
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "exit_code": 0,
+  "verified_installed_version": "2.56.0.3",
+  "stdout_log": "Successfully installed Git [Git.Git] Version 2.56.0.3",
+  "stderr_log": ""
+}
+```
+- **Backend Verification**:
+  - Evaluates exit code and verifies `verified_installed_version == preview.target_version`.
+  - Transitions `update_jobs.status` to `COMPLETED` (if exit code 0) or `FAILED` (if non-zero).
+  - Updates `applications.installed_version` to target version.
+  - Records final status in `audit_events`.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "66666666-6666-6666-6666-666666666666",
+    "status": "COMPLETED",
+    "acknowledged_at": "2026-10-30T14:41:00Z"
+  }
+}
+```
+- **Error Codes**: `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+
