@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
@@ -20,11 +20,15 @@ export const loginSchema = z.object({
 export type LoginFormData = z.infer<typeof loginSchema>;
 
 export const LoginPage: React.FC = () => {
-  const { login } = useAuth();
+  const { login, status } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const fromLocation = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/';
+
+  if (status === 'authenticated') {
+    return <Navigate to={fromLocation} replace />;
+  }
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
