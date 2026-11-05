@@ -1,3 +1,11 @@
 {
-  "python.analysis.extraPaths": ["./tools"]
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/tools",
+    "./tools"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/tools",
+    "./tools"
+  ]
 }
+
