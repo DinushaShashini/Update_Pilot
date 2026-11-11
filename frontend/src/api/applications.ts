@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { triggerScanJob } from './scans';
 
 export interface Application {
   id: string;
@@ -98,13 +99,13 @@ export async function fetchApplications(
   }
 }
 
-export async function triggerScan(deviceId?: string): Promise<{ success: boolean; scanId?: string }> {
-  const endpoint = deviceId ? `/api/devices/${deviceId}/scans` : '/api/scans';
+export async function triggerScan(deviceId?: string): Promise<{ success: boolean; scanId?: string; isExisting?: boolean }> {
   try {
-    const res = await apiClient.post<{ success: boolean; data?: { id?: string; scan_id?: string } }>(endpoint);
+    const res = await triggerScanJob(deviceId);
     return {
       success: true,
-      scanId: res.data?.id || res.data?.scan_id,
+      scanId: res.jobId,
+      isExisting: res.isExisting,
     };
   } catch (err: unknown) {
     if (typeof err === 'object' && err !== null && 'status' in err && (err as { status: number }).status === 404 && deviceId) {

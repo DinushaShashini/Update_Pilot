@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { OverviewMetrics } from '../api/overview';
 import { fetchOverviewMetrics, defaultOverviewMetrics } from '../api/overview';
-import { triggerScan } from '../api/applications';
+import { ScanNowController } from '../components/ScanNowController';
 import './Overview.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -17,8 +17,6 @@ export const Overview: React.FC = () => {
   const [metrics, setMetrics] = useState<OverviewMetrics>(defaultOverviewMetrics);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
 
   const loadMetrics = async () => {
     setIsLoading(true);
@@ -37,20 +35,6 @@ export const Overview: React.FC = () => {
     loadMetrics();
   }, []);
 
-  const handleScanNow = async () => {
-    setIsScanning(true);
-    setScanMessage(null);
-    try {
-      await triggerScan();
-      setScanMessage('Scan initiated successfully. Inspecting WinGet repository...');
-      await loadMetrics();
-    } catch (err: unknown) {
-      setScanMessage(getErrorMessage(err, 'Unable to trigger scan. Check that agent is running.'));
-    } finally {
-      setIsScanning(false);
-    }
-  };
-
   const isOnline = metrics.agentStatus.toUpperCase() === 'ONLINE';
 
   return (
@@ -60,37 +44,12 @@ export const Overview: React.FC = () => {
           <h1>Dashboard Overview</h1>
           <p>Host software inventory and update approval center</p>
         </div>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleScanNow}
-          disabled={isScanning}
-          aria-label="Scan now for updates"
-        >
-          {isScanning ? (
-            <>
-              <span className="spinner-sm" aria-hidden="true" />
-              Scanning...
-            </>
-          ) : (
-            'Scan now'
-          )}
-        </button>
+        <ScanNowController
+          isOnline={isOnline}
+          onScanSuccess={loadMetrics}
+          buttonAriaLabel="Scan now for updates"
+        />
       </header>
-
-      {scanMessage && (
-        <div role="status" className="settings-alert success" aria-live="polite">
-          <span>{scanMessage}</span>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={() => setScanMessage(null)}
-            aria-label="Dismiss scan message"
-          >
-            ×
-          </button>
-        </div>
-      )}
 
       {isLoading && (
         <div className="state-box" data-testid="overview-loading" role="status" aria-live="polite">

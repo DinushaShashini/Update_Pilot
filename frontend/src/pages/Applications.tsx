@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Application, ApplicationsFilterParams } from '../api/applications';
-import { fetchApplications, triggerScan } from '../api/applications';
+import { fetchApplications } from '../api/applications';
+import { ScanNowController } from '../components/ScanNowController';
 import './Applications.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -25,10 +26,6 @@ export const Applications: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 15;
 
-  // Scan triggering
-  const [isScanning, setIsScanning] = useState<boolean>(false);
-  const [scanMessage, setScanMessage] = useState<string | null>(null);
-
   // Slide-over Details Panel
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
 
@@ -52,20 +49,6 @@ export const Applications: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [statusFilter, sourceFilter]);
-
-  const handleScanNow = async () => {
-    setIsScanning(true);
-    setScanMessage(null);
-    try {
-      await triggerScan();
-      setScanMessage('Scan initiated successfully. Refreshing inventory...');
-      await loadData();
-    } catch (err: unknown) {
-      setScanMessage(getErrorMessage(err, 'Unable to start scan. Please verify agent is online.'));
-    } finally {
-      setIsScanning(false);
-    }
-  };
 
   // Keyboard navigation: Escape key closes the slide-over details panel
   useEffect(() => {
@@ -123,37 +106,12 @@ export const Applications: React.FC = () => {
             {totalCount} discovered applications • {managedCount} supported via WinGet • {updatesCount} updates available
           </p>
         </div>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={handleScanNow}
-          disabled={isScanning}
-          aria-label="Trigger scan now"
-        >
-          {isScanning ? (
-            <>
-              <span className="spinner-sm" aria-hidden="true" />
-              Scanning...
-            </>
-          ) : (
-            'Scan now'
-          )}
-        </button>
+        <ScanNowController
+          isOnline={true}
+          onScanSuccess={loadData}
+          buttonAriaLabel="Trigger scan now"
+        />
       </header>
-
-      {scanMessage && (
-        <div role="status" className="settings-alert success" aria-live="polite">
-          <span>{scanMessage}</span>
-          <button
-            type="button"
-            className="modal-close-btn"
-            onClick={() => setScanMessage(null)}
-            aria-label="Dismiss message"
-          >
-            ×
-          </button>
-        </div>
-      )}
 
       {/* Search and Filters Controls */}
       <section className="applications-controls" aria-label="Application Filters">
