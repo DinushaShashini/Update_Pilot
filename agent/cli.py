@@ -13,6 +13,7 @@ from typing import List, Optional
 from agent.config import clear_device_id, get_default_config_path, load_config, save_config
 from agent.executor import process_pending_jobs, run_controlled_upgrade
 from agent.heartbeat import run_heartbeat_loop
+from agent.jobs import run_job_polling_loop
 from agent.pairing import (
     ExpiredCodeError,
     InsecureServerError,
@@ -109,11 +110,12 @@ def run_unpair(config_path: Optional[Path] = None) -> int:
 
 def run_agent(
     interval_seconds: float = 30.0,
+    job_interval_seconds: float = 10.0,
     config_path: Optional[Path] = None,
     shutdown_event: Optional[threading.Event] = None,
     max_iterations: Optional[int] = None,
 ) -> int:
-    """Execute the agent background loop (heartbeats).
+    """Execute the agent background loop (heartbeats and job polling).
 
     Returns:
         Exit code: 0 on normal exit, 1 on error.
@@ -142,6 +144,21 @@ def run_agent(
     except (ValueError, AttributeError):
         pass  # If not in main thread (e.g. tests)
 
+    # Launch job polling worker in background thread
+    job_thread = threading.Thread(
+        target=run_job_polling_loop,
+        kwargs={
+            "server_url": server_url,
+            "token": token,
+            "interval_seconds": job_interval_seconds,
+            "config_path": config_path,
+            "shutdown_event": stop_event,
+            "max_iterations": max_iterations,
+        },
+        daemon=True,
+    )
+    job_thread.start()
+
     run_heartbeat_loop(
         server_url=server_url,
         token=token,
@@ -150,6 +167,9 @@ def run_agent(
         shutdown_event=stop_event,
         max_iterations=max_iterations,
     )
+
+    stop_event.set()
+    job_thread.join(timeout=2.0)
     return 0
 
 
@@ -268,6 +288,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Heartbeat interval in seconds (default: 30)",
     )
     run_parser.add_argument(
+        "--job-interval",
+        type=float,
+        default=10.0,
+        help="Job polling interval in seconds (default: 10)",
+    )
+    run_parser.add_argument(
         "--config",
         dest="config_path",
         type=Path,
@@ -347,6 +373,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.command == "run":
         return run_agent(
             interval_seconds=args.interval,
+            job_interval_seconds=getattr(args, "job_interval", 10.0),
             config_path=getattr(args, "config_path", None),
         )
     elif args.command == "scan":
