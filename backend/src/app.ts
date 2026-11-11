@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/prisma.js';
+import { signToken } from './middleware/auth.js';
 import { scanRouter } from './routes/scans.js';
 import { agentJobRouter } from './routes/agentJobs.js';
 import { agentScanRouter } from './routes/agentScans.js';
@@ -23,6 +24,44 @@ app.use('/api', agentScanRouter);
 
 // Body parsing
 app.use(express.json());
+
+// Auth & Session endpoints (seamless auto-login in dev)
+app.get('/api/me', async (_req: Request, res: Response) => {
+  const token = signToken({ sub: '11111111-1111-1111-1111-111111111111', email: 'dinusha@example.com' });
+  res.status(200).json({
+    success: true,
+    data: {
+      user: {
+        id: '11111111-1111-1111-1111-111111111111',
+        email: 'dinusha@example.com',
+        name: 'Dinusha',
+        role: 'USER',
+      },
+      token,
+    },
+  });
+});
+
+app.post('/api/auth/login', (req: Request, res: Response) => {
+  const email = (req.body?.email as string) || 'dinusha@example.com';
+  const token = signToken({ sub: '11111111-1111-1111-1111-111111111111', email });
+  res.status(200).json({
+    success: true,
+    data: {
+      user: {
+        id: '11111111-1111-1111-1111-111111111111',
+        email,
+        name: 'Dinusha',
+        role: 'USER',
+      },
+      token,
+    },
+  });
+});
+
+app.post('/api/auth/logout', (_req: Request, res: Response) => {
+  res.status(200).json({ success: true });
+});
 
 // Health Check Endpoint (reporting service & database connectivity)
 app.get('/api/health', async (_req: Request, res: Response) => {

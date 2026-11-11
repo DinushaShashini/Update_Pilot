@@ -82,23 +82,59 @@ deviceDataRouter.get(
 
 // GET /api/devices/:id/overview - Dashboard summary using real scan data
 deviceDataRouter.get(
-  ['/devices/:id/overview', '/dashboard/summary'],
+  ['/devices/:id/overview', '/dashboard/summary', '/overview'],
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
-    const deviceId = req.params.id ? String(req.params.id) : (req.query.deviceId ? String(req.query.deviceId) : null);
+    let targetDeviceId = req.params.id ? String(req.params.id) : (req.query.deviceId ? String(req.query.deviceId) : null);
     const user = req.user!;
 
-    if (!deviceId) {
-      res.status(400).json({
-        success: false,
-        error: { code: 'DEVICE_ID_REQUIRED', message: 'Target device ID is required' },
-      });
-      return;
-    }
-
     try {
+      if (!targetDeviceId && req.path === '/overview') {
+        const firstDevice = await prisma.device.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (firstDevice) {
+          targetDeviceId = firstDevice.id;
+        } else {
+          res.status(200).json({
+            success: true,
+            data: {
+              totalApps: 0,
+              managedApps: 0,
+              unsupportedApps: 0,
+              pendingUpdatesCount: 0,
+              lastScanStatus: 'NEVER',
+              lastScanAt: null,
+              agentStatus: 'OFFLINE',
+              agentHostname: '—',
+              device: null,
+              metrics: {
+                total_apps_count: 0,
+                managed_apps_count: 0,
+                unsupported_apps_count: 0,
+                pending_updates_count: 0,
+                last_scan_status: 'NEVER',
+                last_scan_at: null,
+              },
+              recentActivity: [],
+              quickPendingUpdates: [],
+            },
+          });
+          return;
+        }
+      }
+
+      if (!targetDeviceId) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'DEVICE_ID_REQUIRED', message: 'Target device ID is required' },
+        });
+        return;
+      }
+
       const device = await prisma.device.findUnique({
-        where: { id: deviceId },
+        where: { id: targetDeviceId },
       });
 
       if (!device || device.userId !== user.id) {

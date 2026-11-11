@@ -104,6 +104,13 @@ export class ApiClient {
       ...((headers as Record<string, string>) || {}),
     };
 
+    if (!requestHeaders['Authorization'] && typeof localStorage !== 'undefined') {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        requestHeaders['Authorization'] = `Bearer ${storedToken}`;
+      }
+    }
+
     let serializedBody: string | undefined;
     if (body !== undefined && body !== null) {
       requestHeaders['Content-Type'] = 'application/json';

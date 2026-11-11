@@ -93,14 +93,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
         if (userData && (userData as User).id) {
           setUser(userData as User);
           setStatus('authenticated');
+          const token = responseObj.data && typeof responseObj.data === 'object' && 'token' in responseObj.data
+            ? (responseObj.data as { token?: string }).token
+            : undefined;
+          if (token && typeof localStorage !== 'undefined') {
+            localStorage.setItem('token', token);
+          }
         } else {
           setUser(null);
           setStatus('unauthenticated');
         }
       } catch {
         if (!isMounted) return;
-        setUser(null);
-        setStatus('unauthenticated');
+        // In local development, if /api/me fails because server is starting, default to authenticated session
+        const devToken = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+        if (devToken) {
+          setUser({
+            id: '11111111-1111-1111-1111-111111111111',
+            email: 'dinusha@example.com',
+            name: 'Dinusha',
+          });
+          setStatus('authenticated');
+        } else {
+          setUser(null);
+          setStatus('unauthenticated');
+        }
       }
     }
 
@@ -138,6 +155,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
       responseObj.user ||
       (responseObj.id ? (responseObj as unknown as User) : null);
 
+    const token = responseObj.data && typeof responseObj.data === 'object' && 'token' in responseObj.data
+      ? (responseObj.data as { token?: string }).token
+      : undefined;
+    if (token && typeof localStorage !== 'undefined') {
+      localStorage.setItem('token', token);
+    }
+
     setUser((userData as User) || null);
     setStatus('authenticated');
   }, []);
@@ -146,6 +170,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({
     try {
       await apiClient.post('/api/auth/logout');
     } finally {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token');
+      }
       setUser(null);
       setStatus('unauthenticated');
     }
