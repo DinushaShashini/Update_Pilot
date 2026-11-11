@@ -30,7 +30,7 @@ def get_agent_token(service: str = KEYRING_SERVICE_NAME, username: str = KEYRING
         raise RuntimeError("keyring package is required for secure token storage.")
     try:
         return keyring.get_password(service, username)
-    except KeyringError as e:
+    except Exception as e:
         logger.debug("Failed to retrieve agent token from keyring: %s", type(e).__name__)
         return None
 

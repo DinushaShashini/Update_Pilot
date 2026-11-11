@@ -12,6 +12,14 @@ from typing import Any, Dict, Optional
 CONFIG_DIR_ENV = "UPDATEPILOT_CONFIG_DIR"
 CONFIG_FILE_NAME = "config.json"
 
+# Strict allow-list of agent-supported operations
+ALLOWED_OPERATIONS = frozenset({"scan_inventory", "check_updates", "apply_update"})
+
+
+def is_operation_allowed(operation: str) -> bool:
+    """Return True if the requested operation is in the allowed set."""
+    return operation in ALLOWED_OPERATIONS
+
 
 def get_default_config_dir() -> Path:
     """Return the configuration directory path."""

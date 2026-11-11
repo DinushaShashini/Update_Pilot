@@ -1,7 +1,7 @@
 """Data models for installed application inventory scanning."""
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 SourceType = Literal["winget", "registry", "both"]
@@ -38,8 +38,8 @@ class ScanResult:
     """Represents aggregate outcome of an inventory scan."""
 
     apps: List[InstalledApp] = field(default_factory=list)
-    started_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
-    finished_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    started_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    finished_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     winget_available: bool = False

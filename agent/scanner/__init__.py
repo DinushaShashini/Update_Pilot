@@ -12,6 +12,7 @@ import requests
 
 from agent.config import get_default_config_path, load_config
 from agent.pairing import validate_server_url
+from agent.scanner.scan import scan_inventory
 from agent.storage import get_agent_token
 from tools.winget_probe import NO_APPLICATIONS_FOUND_CODES, clean_ansi, parse_winget_table
 

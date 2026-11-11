@@ -11,9 +11,9 @@ MAX_FIELD_LENGTH = 256
 # Regex for control characters (excluding standard whitespace like space)
 CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
-# Regex to strip common architecture qualifiers in comparison keys
+# Regex to strip common architecture and OS qualifiers in comparison keys
 ARCH_MARKER_RE = re.compile(
-    r"\b(x64|x86|win64|win32|64-bit|32-bit|arm64|arm|ia64)\b|\((x64|x86|64-bit|32-bit|arm64)\)",
+    r"\b(x64|x86|win64|win32|64-bit|32-bit|arm64|arm|ia64|for windows)\b|\((x64|x86|64-bit|32-bit|arm64)\)",
     re.IGNORECASE,
 )
 
