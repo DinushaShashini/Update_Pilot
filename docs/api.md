@@ -339,47 +339,102 @@ Returns aggregate cards for the active device.
 ## 6. Scans (`scans`)
 
 ### 6.1 Trigger On-Demand Scan
-Dispatches a request for the Windows agent to execute `winget list` and `winget upgrade`.
-- **Method & Path**: `POST /api/v1/devices/:id/scans`
-- **Auth**: `Bearer <JWT>`
-- **Request Body**: None
-- **Success Response (202 Accepted)**:
+Queues a new `scan_inventory` job for the specified device. The device must be owned by the authenticated user. Only one scan job may be active (`queued` or `running`) at a time for a given device.
+- **Method & Path**: `POST /api/devices/:id/scans` (alias: `POST /api/v1/devices/:id/scans`)
+- **Auth**: `Bearer <JWT>` (User JWT)
+- **Request Body**: None (or empty JSON `{}`)
+- **Success Response (201 Created)**:
 ```json
 {
   "success": true,
   "data": {
-    "scan_id": "55555555-5555-5555-5555-555555555555",
-    "device_id": "22222222-2222-2222-2222-222222222222",
-    "status": "QUEUED",
-    "trigger_type": "MANUAL",
-    "created_at": "2026-10-30T14:38:00Z",
-    "message": "Scan queued. Agent will execute inspection on next poll."
+    "job": {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "requestedByUserId": "11111111-1111-1111-1111-111111111111",
+      "type": "scan_inventory",
+      "status": "queued",
+      "progressPercent": 0,
+      "progressStep": "queued",
+      "createdAt": "2026-11-11T14:38:00.000Z",
+      "startedAt": null,
+      "finishedAt": null,
+      "errorCode": null,
+      "errorMessage": null,
+      "appCount": 0
+    }
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `409 Conflict` (`ACTIVE_SCAN_IN_PROGRESS`).
+- **Error Codes**:
+  - `401 Unauthorized`: Missing or invalid user JWT.
+  - `404 Not Found` (`DEVICE_NOT_FOUND`): Device does not exist or belongs to another user.
+  - `409 Conflict` (`ACTIVE_SCAN_EXISTS`): A scan is already `queued` or `running` on this device. Returns `existingJobId` and current `status`.
 
 ---
 
-### 6.2 Get Scan Status
-- **Method & Path**: `GET /api/v1/devices/:id/scans/:scanId`
-- **Auth**: `Bearer <JWT>`
+### 6.2 Get Latest Scan Job
+Retrieves the most recently created scan job for the device.
+- **Method & Path**: `GET /api/devices/:id/scans/latest` (alias: `GET /api/v1/devices/:id/scans/latest`)
+- **Auth**: `Bearer <JWT>` (User JWT)
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "scan_id": "55555555-5555-5555-5555-555555555555",
-    "status": "COMPLETED",
-    "packages_discovered_count": 196,
-    "updates_discovered_count": 33,
-    "exit_code": 0,
-    "started_at": "2026-10-30T14:38:02Z",
-    "completed_at": "2026-10-30T14:38:18Z"
+    "job": {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "type": "scan_inventory",
+      "status": "succeeded",
+      "progressPercent": 100,
+      "progressStep": "completed",
+      "createdAt": "2026-11-11T14:38:00.000Z",
+      "startedAt": "2026-11-11T14:38:02.000Z",
+      "finishedAt": "2026-11-11T14:38:18.000Z",
+      "errorCode": null,
+      "errorMessage": null,
+      "appCount": 196
+    }
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**:
+  - `401 Unauthorized`
+  - `404 Not Found` (`DEVICE_NOT_FOUND` or `NO_SCANS_FOUND` if no scans have been initiated for this device).
+
+---
+
+### 6.3 Get Scan Job Status
+Retrieves status, live progress percentage, step description, and execution metrics for a specific scan job.
+- **Method & Path**: `GET /api/devices/:id/scans/:jobId` (alias: `GET /api/v1/devices/:id/scans/:jobId`)
+- **Auth**: `Bearer <JWT>` (User JWT)
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "requestedByUserId": "11111111-1111-1111-1111-111111111111",
+      "type": "scan_inventory",
+      "status": "running",
+      "progressPercent": 60,
+      "progressStep": "normalizing",
+      "createdAt": "2026-11-11T14:38:00.000Z",
+      "startedAt": "2026-11-11T14:38:02.000Z",
+      "finishedAt": null,
+      "errorCode": null,
+      "errorMessage": null,
+      "appCount": 0
+    }
+  }
+}
+```
+- **Error Codes**:
+  - `401 Unauthorized`
+  - `404 Not Found` (`DEVICE_NOT_FOUND` or `SCAN_JOB_NOT_FOUND`: job does not exist or does not belong to this device).
 
 ---
 
@@ -675,8 +730,8 @@ Periodic ping sent by the agent (e.g. every 30 seconds) to update online status 
 ---
 
 ### 9.4 Poll for Pending Jobs (`jobs`)
-Retrieves active tasks in `queued` status waiting for agent pickup on this device.
-- **Method & Path**: `GET /api/v1/agent/jobs`
+Retrieves the oldest active task in `queued` status waiting for agent pickup on this device.
+- **Method & Path**: `GET /api/agent/jobs` (alias: `GET /api/v1/agent/jobs`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
 - **Success Response (200 OK)**:
 ```json
@@ -686,76 +741,99 @@ Retrieves active tasks in `queued` status waiting for agent pickup on this devic
     "jobs": [
       {
         "id": "66666666-6666-6666-6666-666666666666",
-        "job_type": "UPDATE_PACKAGE",
-        "package_id": "Git.Git",
-        "command": "winget upgrade --id Git.Git --exact --silent",
-        "target_version": "2.56.0.3",
-        "approved_at": "2026-10-30T14:38:30Z",
-        "approved_by_user": "dinusha@example.com"
+        "type": "scan_inventory",
+        "status": "queued",
+        "createdAt": "2026-11-11T14:38:00.000Z"
       }
     ]
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized` (`DEVICE_REVOKED`).
+*Note: Returns `"jobs": []` when no jobs are queued.*
+- **Error Codes**: `401 Unauthorized` (`UNAUTHORIZED_AGENT` or revoked credentials).
 
 ---
 
 ### 9.5 Claim a Job (`claim`)
-Atomically claims a queued job, transitioning it from `queued` to `running`.
-- **Method & Path**: `POST /api/v1/agent/jobs/:jobId/claim`
+Atomically claims a queued job, transitioning it from `queued` to `running` and recording `startedAt`.
+- **Method & Path**: `POST /api/agent/jobs/:id/claim` (alias: `POST /api/v1/agent/jobs/:id/claim`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
 - **Backend Validation**:
-  - Verifies `job.device_id == authenticated_device.id`.
-  - Verifies `job.status == 'QUEUED'`. Rejects if already claimed or cancelled.
+  - Verifies `job.deviceId == authenticated_device.id` (returns `404` if nonexistent or owned by another device).
+  - Verifies `job.status == 'queued'`. Uses conditional atomic update (`count === 1`).
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "job_id": "66666666-6666-6666-6666-666666666666",
-    "status": "RUNNING",
-    "claimed_at": "2026-10-30T14:40:05Z",
-    "execution_timeout_seconds": 1200
+    "job": {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "type": "scan_inventory",
+      "status": "running",
+      "startedAt": "2026-11-11T14:38:02.000Z"
+    }
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized`, `403 Forbidden` (`JOB_OWNERSHIP_MISMATCH`), `409 Conflict` (`JOB_ALREADY_CLAIMED_OR_TERMINAL`).
+- **Error Codes**:
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`: job does not exist or does not belong to this agent's device)
+  - `409 Conflict` (`CLAIM_CONFLICT`: job already claimed by another process or no longer in `queued` status)
 
 ---
 
 ### 9.6 Report Job Live Progress (`progress`)
-Streams ongoing progress during lengthy downloads or installations for dashboard display.
-- **Method & Path**: `POST /api/v1/agent/jobs/:jobId/progress`
+Reports incremental progress percentage and current step name while a job is running.
+- **Method & Path**: `POST /api/agent/jobs/:id/progress` (alias: `POST /api/v1/agent/jobs/:id/progress`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
 - **Request Body**:
 ```json
 {
-  "stage": "DOWNLOADING",
-  "progress_percentage": 75,
-  "message": "Downloading Git-2.56.0.3-64-bit.exe (48.1 MB / 64.2 MB)",
-  "stdout_line": "> [██████████████████████████████      ] 75%"
+  "percent": 45,
+  "step": "reading_registry"
 }
 ```
 - **Backend Validation**:
-  - Verifies `job.device_id == authenticated_device.id` and `job.status == 'RUNNING'`.
+  - `percent`: integer between 0 and 100. Progress cannot decrease.
+  - `step`: string (max 100 characters).
+  - Job must belong to agent's device and currently have status `running`.
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "received": true
+    "jobId": "66666666-6666-6666-6666-666666666666",
+    "progressPercent": 45,
+    "progressStep": "reading_registry"
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**:
+  - `400 Bad Request` (`JOB_NOT_RUNNING` or validation error)
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`)
 
 ---
 
 ### 9.7 Submit Scan Results (`scans/results`)
-Transmits parsed inventory discovered from `winget list` and `winget upgrade`.
-- **Method & Path**: `POST /api/v1/agent/scans/:scanId/results`
+Transmits the discovered software inventory from the agent's scan pipeline. Enforces strict schema validation, payload size ceiling (2MB max), and persists applications, status, and audit records in an atomic transaction.
+- **Method & Path**: `POST /api/agent/scans/:id/results` (alias: `POST /api/v1/agent/scans/:id/results`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Body Size Limit**: 2MB (`413 Payload Too Large` if exceeded)
+- **Validation Limits (Zod Schema)**:
+  - `discovered_packages`: array, maximum 5,000 items.
+    - `name`: string, 1 to 256 characters.
+    - `package_id`: optional string, maximum 256 characters.
+    - `installed_version`: string, 1 to 128 characters.
+    - `available_version`: optional nullable string, maximum 128 characters.
+    - `publisher`: optional nullable string, maximum 256 characters.
+    - `source`: optional nullable string, maximum 50 characters (`winget` | `registry` | `both`).
+    - `is_managed`: boolean.
+  - `available_upgrades`: optional array of upgrade preview objects.
+  - `raw_stderr`: optional string, maximum 4,096 characters.
+  - `warnings`: optional array of strings (max 100 items, each max 500 characters).
+  - `exit_code`: integer.
 - **Request Body**:
 ```json
 {
@@ -766,15 +844,17 @@ Transmits parsed inventory discovered from `winget list` and `winget upgrade`.
       "package_id": "Git.Git",
       "installed_version": "2.50.0.2",
       "available_version": "2.56.0.3",
-      "source": "winget",
+      "publisher": "The Git Development Community",
+      "source": "both",
       "is_managed": true
     },
     {
       "name": "Google Chrome",
-      "package_id": "ARP\\Machine\\X86\\Google Chrome",
+      "package_id": null,
       "installed_version": "156.0.8078.48",
       "available_version": null,
-      "source": null,
+      "publisher": "Google LLC",
+      "source": "registry",
       "is_managed": false
     }
   ],
@@ -787,31 +867,72 @@ Transmits parsed inventory discovered from `winget list` and `winget upgrade`.
       "source": "winget"
     }
   ],
+  "warnings": [],
   "raw_stderr": ""
 }
 ```
-- **Backend Processing**:
-  - Synchronizes device `applications` inventory.
-  - Generates or updates `update_previews` in `PENDING_APPROVAL` status for actionable upgrades.
-  - Transitions `scan_jobs` status to `COMPLETED` (or `FAILED` if non-zero exit code).
-  - Logs `SCAN_COMPLETED` in `audit_events`.
+- **Transactional Persistence**:
+  1. Upserts each application for this device matching by normalized package ID or name.
+  2. Updates `installedVersion`, `availableVersion`, `publisher`, `source`, `isManaged`, and sets `isInstalled = true`, `lastScannedAt = NOW()`.
+  3. Marks previously existing applications for this device not present in this scan as `isInstalled = false` (never deletes records).
+  4. Transitions `scan_jobs` status to `succeeded`, records `finishedAt = NOW()`, `appCount`, and sets `progressPercent = 100`, `progressStep = "completed"`.
+  5. Updates `devices.lastSeenAt = NOW()`.
+  6. Writes `SCAN_SUCCEEDED` audit event.
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "scan_id": "55555555-5555-5555-5555-555555555555",
-    "status": "COMPLETED",
-    "synced_packages_count": 196,
-    "synced_previews_count": 33
+    "jobId": "55555555-5555-5555-5555-555555555555",
+    "appCount": 196,
+    "status": "succeeded"
   }
 }
 ```
-- **Error Codes**: `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**:
+  - `400 Bad Request` (`VALIDATION_ERROR`: field lengths or package count exceeded)
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`: job not found or wrong device)
+  - `409 Conflict` (`JOB_NOT_RUNNING`: job already succeeded, failed, or not claimed)
+  - `413 Payload Too Large`: payload exceeds 2MB limit
 
 ---
 
-### 9.8 Submit Update Execution Result (`update-jobs/results`)
+### 9.8 Submit Scan Failure (`scans/failure`)
+Reports a failed scan execution when scanning fails (e.g. WinGet and Registry both unavailable or process aborted).
+- **Method & Path**: `POST /api/agent/scans/:id/failure` (alias: `POST /api/v1/agent/scans/:id/failure`)
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "error_code": 1,
+  "error_message": "Both WinGet and Registry inventory scans failed."
+}
+```
+- **Backend Validation & Processing**:
+  - `error_code`: integer.
+  - `error_message`: string, maximum 500 characters (safe user-facing error message without tokens or paths).
+  - Transitions `scan_jobs` status to `failed`, sets `finishedAt = NOW()`, `appCount = 0`.
+  - Writes `SCAN_FAILED` audit event.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "55555555-5555-5555-5555-555555555555",
+    "status": "failed"
+  }
+}
+```
+- **Error Codes**:
+  - `400 Bad Request` (`VALIDATION_ERROR`)
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`)
+  - `409 Conflict` (`JOB_NOT_RUNNING`)
+
+---
+
+### 9.9 Submit Update Execution Result (`update-jobs/results`)
 Transmits the final outcome of an approved `winget upgrade` command execution.
 - **Method & Path**: `POST /api/v1/agent/update-jobs/:jobId/results`
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
