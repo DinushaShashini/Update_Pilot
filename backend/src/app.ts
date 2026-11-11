@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/prisma.js';
+import { scanRouter } from './routes/scans.js';
 
 export const app = express();
 
@@ -47,6 +48,9 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     },
   });
 });
+
+// Scan jobs routes
+app.use('/api', scanRouter);
 
 // Centralized error handler
 app.use(errorHandler);

@@ -13,12 +13,93 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique @db.VarChar(255)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  devices      Device[]
+  scanJobs     ScanJob[]
+  auditEvents  AuditEvent[]
 
   @@map("users")
+}
+
+model Device {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  name         String        @db.VarChar(100)
+  hostname     String        @db.VarChar(100)
+  osVersion    String        @map("os_version") @db.VarChar(100)
+  agentVersion String        @map("agent_version") @db.VarChar(30)
+  status       String        @default("OFFLINE") @db.VarChar(30)
+  lastSeenAt   DateTime?     @map("last_seen_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  scanJobs     ScanJob[]
+  auditEvents  AuditEvent[]
+  applications Application[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model ScanJob {
+  id                String    @id @default(uuid()) @db.Uuid
+  deviceId          String    @map("device_id") @db.Uuid
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  type              String    @default("scan_inventory") @db.VarChar(50)
+  status            String    @default("queued") @db.VarChar(30)
+  progressPercent   Int       @default(0) @map("progress_percent")
+  progressStep      String?   @map("progress_step") @db.VarChar(100)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime? @map("finished_at") @db.Timestamptz(6)
+  errorCode         Int?      @map("error_code")
+  errorMessage      String?   @map("error_message") @db.Text
+  appCount          Int       @default(0) @map("app_count")
+
+  device            Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  requestedByUser   User?     @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, status])
+  @@map("scan_jobs")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  deviceId   String?  @map("device_id") @db.Uuid
+  eventType  String   @map("event_type") @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device     Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("audit_events")
+}
+
+model Application {
+  id               String   @id @default(uuid()) @db.Uuid
+  deviceId         String   @map("device_id") @db.Uuid
+  packageId        String?  @map("package_id") @db.VarChar(255)
+  name             String   @db.VarChar(255)
+  installedVersion String   @map("installed_version") @db.VarChar(100)
+  availableVersion String?  @map("available_version") @db.VarChar(100)
+  publisher        String?  @db.VarChar(255)
+  source           String?  @db.VarChar(50)
+  isManaged        Boolean  @default(false) @map("is_managed")
+  lastScannedAt    DateTime @default(now()) @map("last_scanned_at") @db.Timestamptz(6)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  device           Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, name])
+  @@map("applications")
 }
