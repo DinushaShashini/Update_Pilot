@@ -7,6 +7,7 @@ import time
 from enum import Enum
 from pathlib import Path
 from typing import Callable, Dict, Optional
+from urllib.parse import urlparse
 
 import requests
 from requests.exceptions import RequestException
@@ -66,12 +67,17 @@ def send_single_heartbeat(
         "Accept": "application/json",
     }
 
+    parsed = urlparse(url)
+    is_localhost = (parsed.hostname or "").lower() in ("localhost", "127.0.0.1", "::1")
+    proxies = {"http": None, "https": None} if is_localhost else None
+
     try:
         response = requests.post(
             url,
             json=payload,
             headers=headers,
             timeout=timeout_seconds,
+            proxies=proxies,
         )
     except RequestException as e:
         logger.debug("Heartbeat request failed with exception: %s", type(e).__name__)

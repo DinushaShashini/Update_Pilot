@@ -132,8 +132,8 @@ All errors across the API adhere strictly to a uniform envelope:
 ## 3. Devices & Pairing Codes (`devices`)
 
 ### 3.1 List User Devices
-- **Method & Path**: `GET /api/v1/devices`
-- **Auth**: `Bearer <JWT>`
+- **Method & Path**: `GET /api/devices` (alias: `GET /api/v1/devices`)
+- **Auth**: `Bearer <JWT>` or Session Cookie (`updatepilot_session`)
 - **Request Body**: None
 - **Success Response (200 OK)**:
 ```json
@@ -142,14 +142,14 @@ All errors across the API adhere strictly to a uniform envelope:
   "data": [
     {
       "id": "22222222-2222-2222-2222-222222222222",
-      "computer_name": "DESKTOP-DINUSHA",
-      "os_version": "Windows 11 Home Single Language",
-      "os_build": "26200",
-      "agent_version": "1.0.0",
-      "winget_version": "v1.29.380",
+      "name": "DESKTOP-DINUSHA",
+      "hostname": "DESKTOP-DINUSHA",
+      "os": "Windows 11 Home (Build 26200)",
+      "agentVersion": "1.0.0",
       "status": "ONLINE",
-      "last_heartbeat_at": "2026-10-30T14:37:00Z",
-      "created_at": "2026-10-29T14:18:00Z"
+      "connectionStatus": "Online",
+      "lastSeenAt": "2026-11-11T12:00:00Z",
+      "pairedAt": "2026-10-29T14:18:00Z"
     }
   ]
 }
@@ -160,18 +160,23 @@ All errors across the API adhere strictly to a uniform envelope:
 
 ### 3.2 Generate Device Pairing Token
 Generates a short-lived cryptographic pairing token for onboarding a Windows PC.
-- **Method & Path**: `POST /api/v1/devices/pairing-token`
-- **Auth**: `Bearer <JWT>`
-- **Request Body**: None
+- **Method & Path**: `POST /api/devices/pairing-token` (alias: `POST /api/v1/devices/pairing-token`)
+- **Auth**: `Bearer <JWT>` or Session Cookie (`updatepilot_session`)
+- **Request Body**:
+```json
+{
+  "expires_in_seconds": 900
+}
+```
 - **Success Response (201 Created)**:
 ```json
 {
   "success": true,
   "data": {
     "pairing_token": "tok_8f92ab14ce67d0219b",
-    "expires_at": "2026-10-30T14:52:00Z",
+    "expires_at": "2026-11-11T12:15:00Z",
     "expires_in_seconds": 900,
-    "pairing_command": "python -m updatepilot pair --token tok_8f92ab14ce67d0219b --server https://updatepilot.app"
+    "pairing_command": "agent pair --code tok_8f92ab14ce67d0219b --server https://dashboard.updatepilot.com"
   }
 }
 ```
@@ -180,9 +185,9 @@ Generates a short-lived cryptographic pairing token for onboarding a Windows PC.
 ---
 
 ### 3.3 Revoke Device Pairing
-Destructive action: invalidates all device tokens and disconnects the agent permanently.
-- **Method & Path**: `POST /api/v1/devices/:id/revoke`
-- **Auth**: `Bearer <JWT>`
+Destructive action: invalidates all device tokens, sets status to `REVOKED`, and disconnects the agent permanently.
+- **Method & Path**: `POST /api/devices/:id/revoke` (alias: `POST /api/v1/devices/:id/revoke`)
+- **Auth**: `Bearer <JWT>` or Session Cookie (`updatepilot_session`)
 - **Request Body**:
 ```json
 {
@@ -194,14 +199,13 @@ Destructive action: invalidates all device tokens and disconnects the agent perm
 {
   "success": true,
   "data": {
-    "id": "22222222-2222-2222-2222-222222222222",
+    "device_id": "22222222-2222-2222-2222-222222222222",
     "status": "REVOKED",
-    "revoked_at": "2026-10-30T14:38:00Z",
-    "message": "Device tokens invalidated. Agent communication severed."
+    "message": "Device pairing revoked."
   }
 }
 ```
-- **Error Codes**: `400 Bad Request` (confirmation word mismatch), `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**: `400 Bad Request` (confirmation word mismatch), `401 Unauthorized`, `404 Not Found`.
 
 ---
 
@@ -606,23 +610,20 @@ The agent-facing API facilitates communication between the local Python Windows 
 
 ### 9.2 Device Pairing (`pair`)
 Initial onboarding exchange: redeems a short-lived user pairing token for a permanent device identity and secret token.
-- **Method & Path**: `POST /api/v1/agent/pair`
+- **Method & Path**: `POST /api/agent/pair` (alias: `POST /api/v1/agent/pair`)
 - **Auth**: Public (Authenticated by one-time pairing token)
 - **Request Body**:
 ```json
 {
-  "pairing_token": "tok_8f92ab14ce67d0219b",
-  "hardware_uuid": "4C4C4544-004E-5210-8054-C3C04F343233",
-  "computer_name": "DESKTOP-DINUSHA",
-  "os_version": "Windows 11 Home Single Language",
-  "os_build": "26200",
-  "agent_version": "1.0.0",
-  "winget_version": "v1.29.380"
+  "code": "tok_8f92ab14ce67d0219b",
+  "hostname": "DESKTOP-DINUSHA",
+  "os_version": "Windows 11 Home (Build 26200)",
+  "agent_version": "1.0.0"
 }
 ```
 - **Backend Validation**:
-  - Computes `SHA-256(pairing_token)`.
-  - Verifies token exists, has not expired (`pairing_expires_at > NOW()`), and has not been redeemed.
+  - Computes `SHA-256(code)`.
+  - Verifies token exists, has not expired (`pairing_expires_at > NOW()`), and has not already been redeemed.
   - Binds the device to the user who generated the token.
   - Generates a cryptographically random permanent token (32 bytes / 64 hex characters), hashes it with SHA-256, and stores the hash in `agent_credentials.token_hash`.
 - **Success Response (201 Created)**:
@@ -632,26 +633,28 @@ Initial onboarding exchange: redeems a short-lived user pairing token for a perm
   "data": {
     "device_id": "22222222-2222-2222-2222-222222222222",
     "agent_token": "agt_9f82ab14e76c01283d59a0f443b7e829",
-    "heartbeat_interval_seconds": 60,
+    "heartbeat_interval_seconds": 30,
     "message": "Device successfully paired. Store agent_token securely in host DPAPI / protected storage."
   }
 }
 ```
-- **Error Codes**: `400 Bad Request` (missing hardware info), `403 Forbidden` (`TOKEN_EXPIRED_OR_INVALID`).
+- **Error Codes**:
+  - `400 Bad Request` (missing required fields).
+  - `401 Unauthorized` (`INVALID_PAIRING_CODE`: code does not exist).
+  - `403 Forbidden` (`TOKEN_EXPIRED`: code expiration exceeded; `TOKEN_ALREADY_USED`: code was already redeemed).
 
 ---
 
 ### 9.3 Agent Heartbeat (`heartbeat`)
-Periodic ping sent by the agent (e.g. every 60 seconds) to update online status and report runtime metrics.
-- **Method & Path**: `POST /api/v1/agent/heartbeat`
+Periodic ping sent by the agent (e.g. every 30 seconds) to update online status and report runtime metrics.
+- **Method & Path**: `POST /api/agent/heartbeat` (alias: `POST /api/v1/agent/heartbeat`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
 - **Request Body**:
 ```json
 {
   "agent_version": "1.0.0",
-  "winget_version": "v1.29.380",
-  "os_build": "26200",
-  "uptime_seconds": 14200
+  "os_version": "Windows 11 Home (Build 26200)",
+  "hostname": "DESKTOP-DINUSHA"
 }
 ```
 - **Backend Validation**:
@@ -662,12 +665,12 @@ Periodic ping sent by the agent (e.g. every 60 seconds) to update online status 
 {
   "success": true,
   "data": {
-    "acknowledged_at": "2026-10-30T14:40:00Z",
-    "has_pending_jobs": true
+    "acknowledged_at": "2026-11-11T12:00:30Z",
+    "has_pending_jobs": false
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized` (`DEVICE_REVOKED` / `INVALID_TOKEN`).
+- **Error Codes**: `401 Unauthorized` (`DEVICE_REVOKED`: pairing revoked by user; `UNAUTHORIZED`: invalid or missing token).
 
 ---
 

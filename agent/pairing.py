@@ -126,12 +126,17 @@ def call_pair_endpoint(
         "Accept": "application/json",
     }
 
+    parsed = urlparse(endpoint_url)
+    is_localhost = (parsed.hostname or "").lower() in ("localhost", "127.0.0.1", "::1")
+    proxies = {"http": None, "https": None} if is_localhost else None
+
     try:
         response = requests.post(
             endpoint_url,
             json=payload,
             headers=headers,
             timeout=timeout_seconds,
+            proxies=proxies,
         )
     except ReqSSLError as e:
         raise TLSError(
