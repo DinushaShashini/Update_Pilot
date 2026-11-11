@@ -59,6 +59,8 @@ class TestWinGetScanner(unittest.TestCase):
         self.assertEqual(first.version, "24.09")
         self.assertEqual(first.source, "winget")
         self.assertEqual(first.raw_name, "7-Zip 24.09 (x64)")
+        self.assertEqual(first.publisher, "7zip")
+        self.assertEqual(first.publisher_source, "derived")
 
         # Check unmanaged app with ARP ID
         photoshop = apps[1]

@@ -7,6 +7,7 @@ import unicodedata
 from typing import List, Optional, Tuple
 
 from agent.scanner.models import InstalledApp
+from agent.scanner.publisher import derive_publisher_from_id, enrich_apps_with_winget_show
 from agent.scanner.runner import run_command
 
 logger = logging.getLogger("agent.scanner.winget")
@@ -178,14 +179,17 @@ def parse_winget_list_output(raw_output: str) -> List[InstalledApp]:
         package_id = pkg_id_raw or None
         version = version_raw or "Unknown"
 
+        pub, pub_src = derive_publisher_from_id(package_id)
+
         apps.append(
             InstalledApp(
                 name=name,
                 version=version,
-                publisher=None,
+                publisher=pub,
                 package_id=package_id,
                 source="winget",
                 raw_name=raw_name,
+                publisher_source=pub_src,
             )
         )
 
@@ -207,10 +211,13 @@ def get_winget_version(winget_cmd: str = "winget") -> Optional[str]:
 def list_installed(
     winget_cmd: Optional[str] = None,
     timeout: int = 45,
+    max_enrich: int = 0,
+    enrich_timeout: int = 10,
 ) -> List[InstalledApp]:
     """Execute `winget list` with non-interactive flags and parse installed inventory.
 
     Returns empty list if WinGet is missing or reports zero applications.
+    Optionally enriches a bounded subset of packages via `winget show` (default off).
     """
     cmd = winget_cmd or shutil.which("winget") or "winget"
     args = [
@@ -236,6 +243,16 @@ def list_installed(
             res.error_output.strip() or res.output.strip(),
         )
         # Attempt to parse output if table was output despite non-zero exit
-        return parse_winget_list_output(res.output)
+        apps = parse_winget_list_output(res.output)
+    else:
+        apps = parse_winget_list_output(res.output)
 
-    return parse_winget_list_output(res.output)
+    if max_enrich > 0 and apps:
+        apps = enrich_apps_with_winget_show(
+            apps,
+            max_enrich=max_enrich,
+            winget_cmd=cmd,
+            timeout=enrich_timeout,
+        )
+
+    return apps

@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 SourceType = Literal["winget", "registry", "both"]
+PublisherSource = Literal["registry", "winget_show", "derived"]
 
 
 @dataclass
@@ -17,6 +18,7 @@ class InstalledApp:
     package_id: Optional[str] = None
     source: SourceType = "winget"
     raw_name: Optional[str] = None
+    publisher_source: Optional[PublisherSource] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert InstalledApp to serializable dictionary."""
@@ -27,6 +29,7 @@ class InstalledApp:
             "package_id": self.package_id,
             "source": self.source,
             "raw_name": self.raw_name,
+            "publisher_source": self.publisher_source,
         }
 
 
