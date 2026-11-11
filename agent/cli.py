@@ -20,6 +20,7 @@ from agent.pairing import (
     TLSError,
     call_pair_endpoint,
 )
+from agent.scanner import run_scan
 from agent.storage import delete_agent_token, get_agent_token, save_agent_token
 
 logger = logging.getLogger("agent")
@@ -149,6 +150,23 @@ def run_agent(
     return 0
 
 
+def execute_scan(
+    server_url: Optional[str] = None,
+    config_path: Optional[Path] = None,
+) -> int:
+    """Execute the application inventory scan command."""
+    try:
+        res = run_scan(server_url=server_url, config_path=config_path)
+        sys.stdout.write(
+            f"Scan completed: Discovered {res['total_discovered']} installed applications "
+            f"({res['managed_count']} managed by WinGet/MSStore).\n"
+        )
+        return 0
+    except Exception as e:
+        sys.stderr.write(f"Scan failed: {e}\n")
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build argument parser for the agent CLI."""
     parser = argparse.ArgumentParser(
@@ -203,6 +221,21 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
 
+    # scan command
+    scan_parser = subparsers.add_parser("scan", help="Scan installed applications via WinGet and report to dashboard")
+    scan_parser.add_argument(
+        "--server",
+        default=None,
+        help="Optional server URL override",
+    )
+    scan_parser.add_argument(
+        "--config",
+        dest="config_path",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+
     return parser
 
 
@@ -226,6 +259,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     elif args.command == "run":
         return run_agent(
             interval_seconds=args.interval,
+            config_path=getattr(args, "config_path", None),
+        )
+    elif args.command == "scan":
+        return execute_scan(
+            server_url=args.server,
             config_path=getattr(args, "config_path", None),
         )
     else:
