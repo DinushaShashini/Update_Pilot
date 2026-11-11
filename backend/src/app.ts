@@ -5,6 +5,7 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/prisma.js';
 import { scanRouter } from './routes/scans.js';
 import { agentJobRouter } from './routes/agentJobs.js';
+import { agentScanRouter } from './routes/agentScans.js';
 
 export const app = express();
 
@@ -15,6 +16,9 @@ app.use(
     credentials: true,
   })
 );
+
+// Agent scan result routes have custom body limits (e.g. 2MB for inventory)
+app.use('/api', agentScanRouter);
 
 // Body parsing
 app.use(express.json());

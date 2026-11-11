@@ -103,13 +103,14 @@ model AuditEvent {
 model Application {
   id               String   @id @default(uuid()) @db.Uuid
   deviceId         String   @map("device_id") @db.Uuid
-  packageId        String?  @map("package_id") @db.VarChar(255)
-  name             String   @db.VarChar(255)
-  installedVersion String   @map("installed_version") @db.VarChar(100)
-  availableVersion String?  @map("available_version") @db.VarChar(100)
-  publisher        String?  @db.VarChar(255)
+  packageId        String?  @map("package_id") @db.VarChar(256)
+  name             String   @db.VarChar(256)
+  installedVersion String   @map("installed_version") @db.VarChar(128)
+  availableVersion String?  @map("available_version") @db.VarChar(128)
+  publisher        String?  @db.VarChar(256)
   source           String?  @db.VarChar(50)
   isManaged        Boolean  @default(false) @map("is_managed")
+  isInstalled      Boolean  @default(true) @map("is_installed")
   lastScannedAt    DateTime @default(now()) @map("last_scanned_at") @db.Timestamptz(6)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)

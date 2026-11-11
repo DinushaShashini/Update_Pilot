@@ -12,9 +12,10 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  const statusCode = err.statusCode || 500;
-  const code = err.code || (statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST');
-  const message = err.message || 'An unexpected error occurred.';
+  const isPayloadTooLarge = (err as unknown as { type?: string }).type === 'entity.too.large' || err.statusCode === 413;
+  const statusCode = isPayloadTooLarge ? 413 : (err.statusCode || 500);
+  const code = isPayloadTooLarge ? 'PAYLOAD_TOO_LARGE' : (err.code || (statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'));
+  const message = isPayloadTooLarge ? 'Payload too large' : (err.message || 'An unexpected error occurred.');
 
   res.status(statusCode).json({
     success: false,
