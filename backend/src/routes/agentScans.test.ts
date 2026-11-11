@@ -190,10 +190,9 @@ describe('Agent Scan Results & Failure API (/api/agent/scans)', () => {
       assert.strictEqual(body.data.status, 'succeeded');
 
       // Verify Git was updated
-      assert.strictEqual(updatedApps.length, 1);
-      assert.strictEqual(updatedApps[0].id, 'app-git-1');
-      assert.strictEqual(updatedApps[0].data.installedVersion, '2.50.0');
-      assert.strictEqual(updatedApps[0].data.isInstalled, true);
+      const gitUpsert = updatedApps.find((a) => a.id === 'app-git-1' && a.data.installedVersion === '2.50.0');
+      assert.ok(gitUpsert !== undefined, 'Expected app-git-1 to have installedVersion updated');
+      assert.strictEqual(gitUpsert.data.isInstalled, true);
 
       // Verify VS Code was created
       assert.strictEqual(createdApps.length, 1);

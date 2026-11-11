@@ -76,6 +76,9 @@ model ScanJob {
   errorCode         Int?      @map("error_code")
   errorMessage      String?   @map("error_message") @db.Text
   appCount          Int       @default(0) @map("app_count")
+  matchedCount      Int       @default(0) @map("matched_count")
+  ambiguousCount    Int       @default(0) @map("ambiguous_count")
+  unsupportedCount  Int       @default(0) @map("unsupported_count")
 
   device            Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
   requestedByUser   User?     @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
@@ -117,6 +120,7 @@ model Application {
   matchedPackageId String?   @map("matched_package_id") @db.VarChar(256)
   matchConfidence  Float?    @map("match_confidence")
   matchedAt        DateTime? @map("matched_at") @db.Timestamptz(6)
+  candidates       Json?     @default("[]")
   lastScannedAt    DateTime  @default(now()) @map("last_scanned_at") @db.Timestamptz(6)
   createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)

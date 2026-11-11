@@ -3,6 +3,7 @@ import express from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { requireAgent } from '../middleware/auth.js';
+import { matchDeviceApplications } from '../matching/service.js';
 
 export const agentScanRouter = Router();
 
@@ -184,13 +185,19 @@ agentScanRouter.post(
           }
         }
 
-        // Set job status to succeeded with finishedAt and appCount
+        // Execute matching for device applications within the transaction
+        const matchSummary = await matchDeviceApplications(device.id, tx);
+
+        // Set job status to succeeded with finishedAt, appCount, and match counts
         await tx.scanJob.update({
           where: { id: jobId },
           data: {
             status: 'succeeded',
             finishedAt: now,
             appCount: discovered_packages.length,
+            matchedCount: matchSummary.matchedCount,
+            ambiguousCount: matchSummary.ambiguousCount,
+            unsupportedCount: matchSummary.unsupportedCount,
             progressPercent: 100,
             progressStep: 'completed',
             errorCode: 0,

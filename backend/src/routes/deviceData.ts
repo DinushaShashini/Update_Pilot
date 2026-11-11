@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { getMatchReasonMetadata } from '../matching/reasons.js';
+import { matchDeviceApplications } from '../matching/service.js';
 
 export const deviceDataRouter = Router();
 
@@ -12,6 +14,7 @@ deviceDataRouter.get(
     const deviceId = String(req.params.id);
     const user = req.user!;
     const includeRemoved = req.query.includeRemoved === 'true' || req.query.includeRemoved === '1';
+    const matchStatusFilter = req.query.matchStatus ? String(req.query.matchStatus).toLowerCase() : undefined;
 
     try {
       const device = await prisma.device.findUnique({
@@ -26,12 +29,16 @@ deviceDataRouter.get(
         return;
       }
 
-      const whereClause: { deviceId: string; isInstalled?: boolean } = {
+      const whereClause: { deviceId: string; isInstalled?: boolean; matchStatus?: string } = {
         deviceId: device.id,
       };
 
       if (!includeRemoved) {
         whereClause.isInstalled = true;
+      }
+
+      if (matchStatusFilter) {
+        whereClause.matchStatus = matchStatusFilter;
       }
 
       const applications = await prisma.application.findMany({
@@ -43,6 +50,7 @@ deviceDataRouter.get(
         const lastSeen = app.lastScannedAt ? new Date(app.lastScannedAt).toISOString() : new Date().toISOString();
         const firstSeen = app.createdAt ? new Date(app.createdAt).toISOString() : new Date().toISOString();
         const updated = app.updatedAt ? new Date(app.updatedAt).toISOString() : new Date().toISOString();
+        const reasonMeta = getMatchReasonMetadata(app.matchReason);
 
         return {
           id: app.id,
@@ -57,6 +65,14 @@ deviceDataRouter.get(
           isManaged: app.isManaged,
           installedVersion: app.installedVersion,
           availableVersion: app.availableVersion,
+          matchStatus: app.matchStatus || 'pending',
+          matchReason: app.matchReason || null,
+          matchMessage: reasonMeta.message,
+          matchNextStep: reasonMeta.nextStep,
+          matchedPackageId: app.matchedPackageId || null,
+          matchConfidence: app.matchConfidence !== undefined && app.matchConfidence !== null ? app.matchConfidence : null,
+          matchMethod: app.matchMethod || 'none',
+          candidates: (app.candidates as unknown as unknown[]) || [],
           lastScannedAt: lastSeen,
           createdAt: firstSeen,
           updatedAt: updated,
@@ -70,6 +86,60 @@ deviceDataRouter.get(
           applications: formatted,
           items: formatted,
         },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// POST /api/devices/:id/rematch - Rerun package matching without a new scan (owner only)
+deviceDataRouter.post(
+  '/devices/:id/rematch',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const deviceId = String(req.params.id);
+    const user = req.user!;
+
+    try {
+      const device = await prisma.device.findUnique({
+        where: { id: deviceId },
+      });
+
+      if (!device || device.userId !== user.id) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+        });
+        return;
+      }
+
+      const summary = await matchDeviceApplications(device.id);
+
+      // Audit the rematch event
+      await prisma.auditEvent.create({
+        data: {
+          userId: user.id,
+          deviceId: device.id,
+          eventType: 'APPLICATIONS_REMATCHED',
+          entityType: 'devices',
+          entityId: device.id,
+          metadata: {
+            totalProcessed: summary.totalProcessed,
+            updatedRowsCount: summary.updatedRowsCount,
+            matchedCount: summary.matchedCount,
+            ambiguousCount: summary.ambiguousCount,
+            unsupportedCount: summary.unsupportedCount,
+          },
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: summary,
       });
     } catch (error) {
       res.status(500).json({
@@ -178,10 +248,28 @@ deviceDataRouter.get(
         ? latestScan.createdAt.toISOString()
         : null;
 
+      // Match status counts
+      const matchedApps = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, matchStatus: 'matched' },
+      });
+
+      const ambiguousApps = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, matchStatus: 'ambiguous' },
+      });
+
+      const unsupportedAppsCount = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, matchStatus: 'unsupported' },
+      });
+
       const data = {
         totalApps,
         managedApps,
         unsupportedApps,
+        matchedApps,
+        ambiguousApps,
+        matchedCount: matchedApps,
+        ambiguousCount: ambiguousApps,
+        unsupportedCount: unsupportedAppsCount,
         pendingUpdatesCount,
         lastScanStatus,
         lastScanAt,
@@ -197,7 +285,12 @@ deviceDataRouter.get(
         metrics: {
           total_apps_count: totalApps,
           managed_apps_count: managedApps,
-          unsupported_apps_count: unsupportedApps,
+          unsupported_apps_count: unsupportedAppsCount > 0 ? unsupportedAppsCount : unsupportedApps,
+          matched_apps_count: matchedApps,
+          ambiguous_apps_count: ambiguousApps,
+          matched_count: matchedApps,
+          ambiguous_count: ambiguousApps,
+          unsupported_count: unsupportedAppsCount > 0 ? unsupportedAppsCount : unsupportedApps,
           pending_updates_count: pendingUpdatesCount,
           last_scan_status: lastScanStatus,
           last_scan_at: lastScanAt,
