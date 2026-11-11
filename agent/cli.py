@@ -2,11 +2,15 @@
 
 import argparse
 import getpass
+import logging
+import signal
 import sys
+import threading
 from pathlib import Path
 from typing import List, Optional
 
 from agent.config import clear_device_id, get_default_config_path, load_config, save_config
+from agent.heartbeat import run_heartbeat_loop
 from agent.pairing import (
     ExpiredCodeError,
     InsecureServerError,
@@ -16,7 +20,9 @@ from agent.pairing import (
     TLSError,
     call_pair_endpoint,
 )
-from agent.storage import delete_agent_token, save_agent_token
+from agent.storage import delete_agent_token, get_agent_token, save_agent_token
+
+logger = logging.getLogger("agent")
 
 
 def prompt_pairing_code() -> str:
@@ -97,6 +103,52 @@ def run_unpair(config_path: Optional[Path] = None) -> int:
         return 1
 
 
+def run_agent(
+    interval_seconds: float = 30.0,
+    config_path: Optional[Path] = None,
+    shutdown_event: Optional[threading.Event] = None,
+    max_iterations: Optional[int] = None,
+) -> int:
+    """Execute the agent background loop (heartbeats).
+
+    Returns:
+        Exit code: 0 on normal exit, 1 on error.
+    """
+    cfg = load_config(config_path)
+    server_url = cfg.get("server_url")
+    device_id = cfg.get("device_id")
+    token = get_agent_token()
+
+    if not server_url or not device_id or not token:
+        msg = "Agent is not paired. Run 'agent pair --server <url>' first.\n"
+        sys.stderr.write(f"Error: {msg}")
+        logger.error(msg.strip())
+        return 1
+
+    stop_event = shutdown_event or threading.Event()
+
+    # Wire up OS termination signals for clean shutdown
+    def handle_signal(sig, frame):  # pragma: no cover
+        logger.info("Signal received, initiating graceful shutdown...")
+        stop_event.set()
+
+    try:
+        signal.signal(signal.SIGINT, handle_signal)
+        signal.signal(signal.SIGTERM, handle_signal)
+    except (ValueError, AttributeError):
+        pass  # If not in main thread (e.g. tests)
+
+    run_heartbeat_loop(
+        server_url=server_url,
+        token=token,
+        interval_seconds=interval_seconds,
+        config_path=config_path,
+        shutdown_event=stop_event,
+        max_iterations=max_iterations,
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build argument parser for the agent CLI."""
     parser = argparse.ArgumentParser(
@@ -135,11 +187,31 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
 
+    # run command
+    run_parser = subparsers.add_parser("run", help="Run the agent heartbeat background loop")
+    run_parser.add_argument(
+        "--interval",
+        type=float,
+        default=30.0,
+        help="Heartbeat interval in seconds (default: 30)",
+    )
+    run_parser.add_argument(
+        "--config",
+        dest="config_path",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+
     return parser
 
 
 def main(argv: Optional[List[str]] = None) -> int:
     """Entry point for the agent CLI."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -151,6 +223,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
     elif args.command == "unpair":
         return run_unpair(config_path=getattr(args, "config_path", None))
+    elif args.command == "run":
+        return run_agent(
+            interval_seconds=args.interval,
+            config_path=getattr(args, "config_path", None),
+        )
     else:
         parser.print_help(sys.stderr)
         return 1
