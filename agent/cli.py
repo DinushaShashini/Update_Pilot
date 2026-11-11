@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from agent.config import clear_device_id, get_default_config_path, load_config, save_config
+from agent.executor import process_pending_jobs, run_controlled_upgrade
 from agent.heartbeat import run_heartbeat_loop
 from agent.pairing import (
     ExpiredCodeError,
@@ -167,6 +168,28 @@ def execute_scan(
         return 1
 
 
+def execute_upgrade_cli(
+    package_id: Optional[str] = None,
+    server_url: Optional[str] = None,
+    config_path: Optional[Path] = None,
+) -> int:
+    """Execute update jobs or a specific approved package."""
+    try:
+        if package_id:
+            res = run_controlled_upgrade(package_id=package_id)
+            if res["success"]:
+                sys.stdout.write(f"Successfully upgraded {package_id}.\n")
+                return 0
+            sys.stderr.write(f"Upgrade failed for {package_id}: {res['stderr']}\n")
+            return 1
+        count = process_pending_jobs(server_url=server_url, config_path=config_path)
+        sys.stdout.write(f"Processed {count} approved update job(s).\n")
+        return 0
+    except Exception as e:
+        sys.stderr.write(f"Upgrade command failed: {e}\n")
+        return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build argument parser for the agent CLI."""
     parser = argparse.ArgumentParser(
@@ -236,6 +259,27 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
 
+    # upgrade command
+    upgrade_parser = subparsers.add_parser("upgrade", help="Execute approved WinGet update jobs")
+    upgrade_parser.add_argument(
+        "--package",
+        dest="package_id",
+        default=None,
+        help="Specific package ID to upgrade (e.g. Git.Git)",
+    )
+    upgrade_parser.add_argument(
+        "--server",
+        default=None,
+        help="Optional server URL override",
+    )
+    upgrade_parser.add_argument(
+        "--config",
+        dest="config_path",
+        type=Path,
+        default=None,
+        help=argparse.SUPPRESS,
+    )
+
     return parser
 
 
@@ -263,6 +307,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
     elif args.command == "scan":
         return execute_scan(
+            server_url=args.server,
+            config_path=getattr(args, "config_path", None),
+        )
+    elif args.command == "upgrade":
+        return execute_upgrade_cli(
+            package_id=args.package_id,
             server_url=args.server,
             config_path=getattr(args, "config_path", None),
         )
