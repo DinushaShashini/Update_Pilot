@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/prisma.js';
 import { scanRouter } from './routes/scans.js';
+import { agentJobRouter } from './routes/agentJobs.js';
 
 export const app = express();
 
@@ -51,6 +52,7 @@ app.get('/api/health', async (_req: Request, res: Response) => {
 
 // Scan jobs routes
 app.use('/api', scanRouter);
+app.use('/api', agentJobRouter);
 
 // Centralized error handler
 app.use(errorHandler);

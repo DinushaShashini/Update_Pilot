@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
+import { prisma } from '../lib/prisma.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'updatepilot-dev-jwt-secret-key-at-least-32-chars';
 
@@ -8,14 +9,18 @@ export interface AuthUser {
   email: string;
 }
 
+export interface AgentDevice {
+  id: string;
+  name: string;
+  hostname?: string;
+}
+
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       user?: AuthUser;
-      deviceContext?: {
-        deviceId: string;
-      };
+      agentDevice?: AgentDevice;
     }
   }
 }
@@ -96,4 +101,45 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
 
   req.user = { id: payload.sub, email: payload.email };
   next();
+}
+
+export async function requireAgent(req: Request, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({
+      success: false,
+      error: { code: 'UNAUTHORIZED_AGENT', message: 'Agent authorization token required' },
+    });
+    return;
+  }
+
+  const token = authHeader.slice(7).trim();
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+  try {
+    const credential = await prisma.agentCredential.findUnique({
+      where: { tokenHash },
+      include: { device: true },
+    });
+
+    if (!credential || !credential.device || credential.revokedAt !== null) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED_AGENT', message: 'Agent token is invalid or revoked' },
+      });
+      return;
+    }
+
+    req.agentDevice = {
+      id: credential.device.id,
+      name: credential.device.name,
+      hostname: credential.device.hostname,
+    };
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
 }
