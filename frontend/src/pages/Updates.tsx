@@ -92,7 +92,10 @@ export const Updates: React.FC = () => {
     }
   };
 
-  const pendingCount = updates.filter(u => u.status === 'PENDING_APPROVAL').length;
+  // Only offer updates for matched applications (preserve backward compatibility when matchStatus is omitted)
+  const eligibleUpdates = updates.filter(u => !u.matchStatus || u.matchStatus === 'matched');
+  const excludedUpdates = updates.filter(u => u.matchStatus && u.matchStatus !== 'matched');
+  const pendingCount = eligibleUpdates.filter(u => u.status === 'PENDING_APPROVAL').length;
 
   return (
     <div className="updates-page" data-testid="updates-page">
@@ -112,10 +115,25 @@ export const Updates: React.FC = () => {
           <h2>Explicit User Approval Gate (Rule #1)</h2>
           <p>
             No software updates are applied automatically. You must explicitly inspect and approve each package before
-            the Windows agent executes installation.
+            the Windows agent executes installation. Only conservatively matched applications are offered here.
           </p>
         </div>
       </section>
+
+      {!isLoading && !error && excludedUpdates.length > 0 && (
+        <div
+          role="note"
+          className="state-box"
+          data-testid="updates-excluded-note"
+          style={{ marginBottom: '16px', padding: '12px 16px', textAlign: 'left' }}
+        >
+          <strong>
+            {excludedUpdates.length} application{excludedUpdates.length === 1 ? '' : 's'} excluded from automated updates:
+          </strong>{' '}
+          Ambiguous or unsupported applications cannot be safely updated automatically and are not listed for approval.
+          Review their status in the Applications page.
+        </div>
+      )}
 
       {feedbackMessage && (
         <div role="status" className={`settings-alert ${feedbackMessage.type}`} aria-live="polite">
@@ -149,14 +167,14 @@ export const Updates: React.FC = () => {
         </div>
       )}
 
-      {!isLoading && !error && updates.length === 0 && (
+      {!isLoading && !error && eligibleUpdates.length === 0 && (
         <div className="state-box" data-testid="updates-empty">
           <h3>All applications are up to date</h3>
-          <p>The Windows agent found no pending software upgrades on your registered devices.</p>
+          <p>The Windows agent found no pending software upgrades for matched packages on your registered devices.</p>
         </div>
       )}
 
-      {!isLoading && !error && updates.length > 0 && (
+      {!isLoading && !error && eligibleUpdates.length > 0 && (
         <div className="updates-table-card">
           <table className="updates-table" aria-label="Pending software updates list">
             <thead>
@@ -170,7 +188,7 @@ export const Updates: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {updates.map(update => {
+              {eligibleUpdates.map(update => {
                 const isPending = update.status === 'PENDING_APPROVAL';
                 const isApproved = update.status === 'APPROVED';
                 const isRejected = update.status === 'REJECTED';

@@ -1,6 +1,14 @@
 import { apiClient } from './client';
 import { triggerScanJob } from './scans';
 
+export type MatchStatus = 'matched' | 'ambiguous' | 'unsupported' | 'pending';
+
+export interface MatchCandidate {
+  packageId: string;
+  name: string;
+  publisher?: string | null;
+}
+
 export interface Application {
   id: string;
   deviceId?: string;
@@ -13,11 +21,20 @@ export interface Application {
   lastScannedAt?: string | null;
   description?: string | null;
   publisher?: string | null;
+  matchStatus?: MatchStatus;
+  matchReason?: string | null;
+  matchMessage?: string | null;
+  matchNextStep?: string | null;
+  matchedPackageId?: string | null;
+  matchConfidence?: number | null;
+  matchMethod?: string | null;
+  candidates?: MatchCandidate[];
 }
 
 export interface ApplicationsFilterParams {
   search?: string;
   status?: 'all' | 'update_available' | 'managed' | 'unsupported';
+  matchStatus?: 'all' | MatchStatus;
   source?: 'all' | 'winget' | 'msstore' | 'local';
   page?: number;
   limit?: number;
@@ -41,6 +58,7 @@ export async function fetchApplications(
   const queryParams: Record<string, string | number> = {};
   if (params?.search) queryParams.search = params.search;
   if (params?.status && params.status !== 'all') queryParams.status = params.status;
+  if (params?.matchStatus && params.matchStatus !== 'all') queryParams.matchStatus = params.matchStatus;
   if (params?.source && params.source !== 'all') queryParams.source = params.source;
   if (params?.page) queryParams.page = params.page;
   if (params?.limit) queryParams.limit = params.limit;

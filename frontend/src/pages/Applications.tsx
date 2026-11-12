@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Application, ApplicationsFilterParams } from '../api/applications';
+import type { Application, ApplicationsFilterParams, MatchStatus } from '../api/applications';
 import { fetchApplications } from '../api/applications';
 import { ScanNowController } from '../components/ScanNowController';
 import './Applications.css';
@@ -12,6 +12,64 @@ function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+export function getEffectiveMatchStatus(app: Application): MatchStatus {
+  if (app.matchStatus) return app.matchStatus;
+  return app.isManaged ? 'matched' : 'unsupported';
+}
+
+export interface MatchDisplayInfo {
+  status: MatchStatus;
+  label: string;
+  icon: string;
+  reasonCode: string;
+  message: string;
+  nextStep: string;
+}
+
+export function getMatchDisplayInfo(app: Application): MatchDisplayInfo {
+  const status = getEffectiveMatchStatus(app);
+  const defaults: Record<MatchStatus, { label: string; icon: string; reason: string; msg: string; next: string }> = {
+    matched: {
+      label: 'Supported',
+      icon: '✔',
+      reason: 'WINGET_ID_PRESENT',
+      msg: 'Matched via verified package identifier.',
+      next: 'Updates can be queried and approved through WinGet.',
+    },
+    ambiguous: {
+      label: 'Needs review',
+      icon: '⚠',
+      reason: 'MULTIPLE_CANDIDATES',
+      msg: 'Multiple package manifests matched this application name.',
+      next: 'Review candidate packages in Application Details.',
+    },
+    unsupported: {
+      label: 'Not supported',
+      icon: 'ℹ',
+      reason: 'REGISTRY_ONLY',
+      msg: 'Discovered locally without an automated WinGet package match.',
+      next: 'Update manually using the vendor installer.',
+    },
+    pending: {
+      label: 'Pending',
+      icon: '⏳',
+      reason: 'PENDING',
+      msg: 'Awaiting catalog matching.',
+      next: 'Matching executes automatically after scan completion.',
+    },
+  };
+
+  const def = defaults[status];
+  return {
+    status,
+    label: def.label,
+    icon: def.icon,
+    reasonCode: app.matchReason || def.reason,
+    message: app.matchMessage || def.msg,
+    nextStep: app.matchNextStep || def.next,
+  };
+}
+
 export const Applications: React.FC = () => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -20,7 +78,11 @@ export const Applications: React.FC = () => {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [matchStatusFilter, setMatchStatusFilter] = useState<'all' | MatchStatus>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+
+  // Keyboard-reachable tooltip/popover state
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -50,16 +112,20 @@ export const Applications: React.FC = () => {
     loadData();
   }, [statusFilter, sourceFilter]);
 
-  // Keyboard navigation: Escape key closes the slide-over details panel
+  // Keyboard navigation: Escape key closes popover or slide-over details panel
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && selectedApp) {
-        setSelectedApp(null);
+      if (e.key === 'Escape') {
+        if (openPopoverId) {
+          setOpenPopoverId(null);
+        } else if (selectedApp) {
+          setSelectedApp(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedApp]);
+  }, [selectedApp, openPopoverId]);
 
   // Client-side search and filtering
   const filteredApps = useMemo(() => {
@@ -76,18 +142,26 @@ export const Applications: React.FC = () => {
         (statusFilter === 'unsupported' && !app.isManaged) ||
         (statusFilter === 'update_available' && Boolean(app.availableVersion));
 
+      const effectiveMatch = getEffectiveMatchStatus(app);
+      const matchesSupport =
+        matchStatusFilter === 'all' || effectiveMatch === matchStatusFilter;
+
       const matchesSource =
         sourceFilter === 'all' ||
         (app.source && app.source.toLowerCase() === sourceFilter.toLowerCase());
 
-      return matchesSearch && matchesStatus && matchesSource;
+      return matchesSearch && matchesStatus && matchesSupport && matchesSource;
     });
-  }, [applications, searchQuery, statusFilter, sourceFilter]);
+  }, [applications, searchQuery, statusFilter, matchStatusFilter, sourceFilter]);
 
   // Metrics summary
   const totalCount = applications.length;
   const managedCount = applications.filter(a => a.isManaged).length;
   const updatesCount = applications.filter(a => Boolean(a.availableVersion)).length;
+
+  const matchedCount = applications.filter(a => getEffectiveMatchStatus(a) === 'matched').length;
+  const ambiguousCount = applications.filter(a => getEffectiveMatchStatus(a) === 'ambiguous').length;
+  const unsupportedMatchCount = applications.filter(a => getEffectiveMatchStatus(a) === 'unsupported').length;
 
   // Pagination slice
   const totalPages = Math.max(1, Math.ceil(filteredApps.length / pageSize));
@@ -148,6 +222,21 @@ export const Applications: React.FC = () => {
 
           <select
             className="filter-select"
+            value={matchStatusFilter}
+            onChange={e => {
+              setMatchStatusFilter(e.target.value as 'all' | MatchStatus);
+              setCurrentPage(1);
+            }}
+            aria-label="Filter by update support"
+          >
+            <option value="all">Support: All ({totalCount})</option>
+            <option value="matched">Supported ({matchedCount})</option>
+            <option value="ambiguous">Needs review ({ambiguousCount})</option>
+            <option value="unsupported">Not supported ({unsupportedMatchCount})</option>
+          </select>
+
+          <select
+            className="filter-select"
             value={sourceFilter}
             onChange={e => {
               setSourceFilter(e.target.value);
@@ -162,6 +251,60 @@ export const Applications: React.FC = () => {
           </select>
         </div>
       </section>
+
+      {/* Match Support Summary Bar with Clickable Filter Chips */}
+      {!isLoading && !error && (
+        <section className="match-summary-bar" aria-label="Update support summary" data-testid="match-summary-bar">
+          <button
+            type="button"
+            className={`summary-chip ${matchStatusFilter === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setMatchStatusFilter('all');
+              setCurrentPage(1);
+            }}
+            aria-pressed={matchStatusFilter === 'all'}
+            data-testid="filter-chip-all"
+          >
+            All ({totalCount})
+          </button>
+          <button
+            type="button"
+            className={`summary-chip chip-matched ${matchStatusFilter === 'matched' ? 'active' : ''}`}
+            onClick={() => {
+              setMatchStatusFilter('matched');
+              setCurrentPage(1);
+            }}
+            aria-pressed={matchStatusFilter === 'matched'}
+            data-testid="filter-chip-matched"
+          >
+            <span aria-hidden="true">✔</span> Supported ({matchedCount})
+          </button>
+          <button
+            type="button"
+            className={`summary-chip chip-ambiguous ${matchStatusFilter === 'ambiguous' ? 'active' : ''}`}
+            onClick={() => {
+              setMatchStatusFilter('ambiguous');
+              setCurrentPage(1);
+            }}
+            aria-pressed={matchStatusFilter === 'ambiguous'}
+            data-testid="filter-chip-ambiguous"
+          >
+            <span aria-hidden="true">⚠</span> Needs review ({ambiguousCount})
+          </button>
+          <button
+            type="button"
+            className={`summary-chip chip-unsupported ${matchStatusFilter === 'unsupported' ? 'active' : ''}`}
+            onClick={() => {
+              setMatchStatusFilter('unsupported');
+              setCurrentPage(1);
+            }}
+            aria-pressed={matchStatusFilter === 'unsupported'}
+            data-testid="filter-chip-unsupported"
+          >
+            <span aria-hidden="true">ℹ</span> Not supported ({unsupportedMatchCount})
+          </button>
+        </section>
+      )}
 
       {/* Main Content Area */}
       {isLoading && (
@@ -201,44 +344,91 @@ export const Applications: React.FC = () => {
                 <th scope="col">Package ID</th>
                 <th scope="col">Version</th>
                 <th scope="col">Status</th>
+                <th scope="col">Update support</th>
                 <th scope="col">Source</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedApps.map(app => (
-                <tr
-                  key={app.id || app.packageId || app.name}
-                  className="clickable-row"
-                  onClick={() => setSelectedApp(app)}
-                  data-testid={`app-row-${app.packageId || app.name}`}
-                  tabIndex={0}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') setSelectedApp(app);
-                  }}
-                  role="button"
-                  aria-label={`View details for ${app.name}`}
-                >
-                  <td className="app-name-cell">{app.name}</td>
-                  <td className="app-package-id">{app.packageId || '—'}</td>
-                  <td>{app.installedVersion}</td>
-                  <td>
-                    {app.availableVersion ? (
-                      <span className="badge-update-avail" data-testid="status-update-available">
-                        Update Available ({app.availableVersion})
-                      </span>
-                    ) : app.isManaged ? (
-                      <span className="badge-managed" data-testid="status-supported">
-                        Supported
-                      </span>
-                    ) : (
-                      <span className="badge-unsupported" data-testid="status-unsupported">
-                        Unsupported
-                      </span>
-                    )}
-                  </td>
-                  <td>{app.source || 'Local'}</td>
-                </tr>
-              ))}
+              {paginatedApps.map(app => {
+                const rowKey = app.id || app.packageId || app.name;
+                const matchInfo = getMatchDisplayInfo(app);
+                const isPopoverOpen = openPopoverId === rowKey;
+                const popoverId = `match-popover-${rowKey}`;
+
+                return (
+                  <tr
+                    key={rowKey}
+                    className="clickable-row"
+                    onClick={() => setSelectedApp(app)}
+                    data-testid={`app-row-${app.packageId || app.name}`}
+                    tabIndex={0}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') setSelectedApp(app);
+                    }}
+                    role="button"
+                    aria-label={`View details for ${app.name}`}
+                  >
+                    <td className="app-name-cell">{app.name}</td>
+                    <td className="app-package-id">{app.packageId || '—'}</td>
+                    <td>{app.installedVersion}</td>
+                    <td>
+                      {app.availableVersion ? (
+                        <span className="badge-update-avail" data-testid="status-update-available">
+                          Update Available ({app.availableVersion})
+                        </span>
+                      ) : app.isManaged ? (
+                        <span className="badge-managed" data-testid="status-supported">
+                          Supported
+                        </span>
+                      ) : (
+                        <span className="badge-unsupported" data-testid="status-unsupported">
+                          Unsupported
+                        </span>
+                      )}
+                    </td>
+                    <td className="match-support-cell">
+                      <div className="match-badge-wrapper">
+                        <button
+                          type="button"
+                          className={`match-badge match-badge-${matchInfo.status}`}
+                          data-testid={`match-badge-${matchInfo.status}`}
+                          aria-expanded={isPopoverOpen}
+                          aria-describedby={isPopoverOpen ? popoverId : undefined}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setOpenPopoverId(isPopoverOpen ? null : rowKey);
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.stopPropagation();
+                            }
+                          }}
+                        >
+                          <span aria-hidden="true">{matchInfo.icon}</span>
+                          <span>{matchInfo.label}</span>
+                        </button>
+
+                        {isPopoverOpen && (
+                          <div
+                            id={popoverId}
+                            role="tooltip"
+                            className="match-reason-popover"
+                            data-testid="match-reason-popover"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <div className="popover-reason-code">{matchInfo.reasonCode}</div>
+                            <p className="popover-message">{matchInfo.message}</p>
+                            <p className="popover-next-step">
+                              <strong>Next step:</strong> {matchInfo.nextStep}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>{app.source || 'Local'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -351,6 +541,86 @@ export const Applications: React.FC = () => {
                   )}
                 </span>
               </div>
+
+              {(() => {
+                const info = getMatchDisplayInfo(selectedApp);
+                const confidenceText =
+                  typeof selectedApp.matchConfidence === 'number'
+                    ? `${Math.round(selectedApp.matchConfidence * 100)}%`
+                    : '—';
+                const candidates = Array.isArray(selectedApp.candidates) ? selectedApp.candidates : [];
+
+                return (
+                  <div className="match-details-section" data-testid="app-match-details">
+                    <div className="detail-row">
+                      <span className="detail-row-label">Update Support</span>
+                      <span className="detail-row-value">
+                        <span className={`match-badge match-badge-${info.status}`}>
+                          <span aria-hidden="true">{info.icon}</span>
+                          <span>{info.label}</span>
+                        </span>
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-row-label">Match Method</span>
+                      <span className="detail-row-value" data-testid="detail-match-method">
+                        {selectedApp.matchMethod || 'none'}
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-row-label">Match Confidence</span>
+                      <span className="detail-row-value" data-testid="detail-match-confidence">
+                        {confidenceText}
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-row-label">Matched Package ID</span>
+                      <span
+                        className="detail-row-value"
+                        style={{ fontFamily: 'var(--font-mono)' }}
+                        data-testid="detail-matched-package-id"
+                      >
+                        {selectedApp.matchedPackageId || '—'}
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-row-label">Match Reason</span>
+                      <div className="detail-row-value" data-testid="detail-match-reason">
+                        <div className="popover-reason-code">{info.reasonCode}</div>
+                        <p style={{ margin: '4px 0', fontSize: '13px' }}>{info.message}</p>
+                        <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {info.nextStep}
+                        </p>
+                      </div>
+                    </div>
+
+                    {info.status === 'ambiguous' && (
+                      <div className="detail-row" data-testid="ambiguous-candidates-section">
+                        <span className="detail-row-label">Candidate Packages (Read-Only)</span>
+                        {candidates.length > 0 ? (
+                          <ul className="candidates-readonly-list" data-testid="ambiguous-candidates-list">
+                            {candidates.map(cand => (
+                              <li key={cand.packageId} className="candidate-readonly-item">
+                                <div className="candidate-name">{cand.name}</div>
+                                <div className="candidate-meta">
+                                  <code>{cand.packageId}</code>
+                                  {cand.publisher ? ` • ${cand.publisher}` : ''}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <span className="detail-row-value">No candidate metadata recorded.</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>

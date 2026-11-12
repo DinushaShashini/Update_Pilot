@@ -144,4 +144,53 @@ describe('Software Updates & Approval Gate Screen', () => {
     const retryBtn = screen.getByRole('button', { name: /retry/i });
     expect(retryBtn).toBeDefined();
   });
+
+  it('offers only matched apps for update and explains why ambiguous/unsupported apps are excluded', async () => {
+    vi.spyOn(updatesApi, 'fetchPendingUpdates').mockResolvedValue([
+      {
+        id: 'upd-matched',
+        packageId: 'Git.Git',
+        name: 'Git',
+        currentVersion: '2.50.0',
+        targetVersion: '2.56.0',
+        source: 'winget',
+        status: 'PENDING_APPROVAL',
+        matchStatus: 'matched',
+      },
+      {
+        id: 'upd-ambiguous',
+        packageId: 'Oracle.JDK',
+        name: 'Java SE Development Kit',
+        currentVersion: '23.0.0',
+        targetVersion: '25.0.0',
+        source: 'winget',
+        status: 'PENDING_APPROVAL',
+        matchStatus: 'ambiguous',
+      },
+      {
+        id: 'upd-unsupported',
+        packageId: 'MSIX\\Foo',
+        name: 'Store App',
+        currentVersion: '1.0.0',
+        targetVersion: '2.0.0',
+        source: 'msstore',
+        status: 'PENDING_APPROVAL',
+        matchStatus: 'unsupported',
+      },
+    ]);
+
+    render(<Updates />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('updates-excluded-note')).toBeDefined();
+    });
+
+    // Matched app is offered
+    expect(screen.getByText('Git')).toBeDefined();
+    // Ambiguous and unsupported apps are NOT offered
+    expect(screen.queryByText('Java SE Development Kit')).toBeNull();
+    expect(screen.queryByText('Store App')).toBeNull();
+    // Note explains why
+    expect(screen.getByTestId('updates-excluded-note').textContent).toContain('2 applications excluded');
+  });
 });

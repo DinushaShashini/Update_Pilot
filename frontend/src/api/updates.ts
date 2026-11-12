@@ -18,6 +18,8 @@ export interface UpdateItem {
   targetVersion: string;
   source?: string;
   status: UpdateStatus;
+  matchStatus?: 'matched' | 'ambiguous' | 'unsupported' | 'pending';
+  matchReason?: string | null;
   detectedAt?: string;
   approvedAt?: string;
   rejectedAt?: string;
