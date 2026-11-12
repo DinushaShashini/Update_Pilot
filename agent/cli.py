@@ -26,6 +26,7 @@ from agent.pairing import (
 from agent.scanner import run_scan
 from agent.scanner.scan import scan_inventory
 from agent.storage import delete_agent_token, get_agent_token, save_agent_token
+from agent.updates import check_updates
 
 logger = logging.getLogger("agent")
 
@@ -219,6 +220,40 @@ def execute_scan(
         return 1
 
 
+def execute_check_updates(
+    output_json: bool = False,
+    output_file: Optional[Path] = None,
+) -> int:
+    """Execute read-only update detection via `winget upgrade`.
+
+    Works locally without requiring agent pairing.
+    """
+    res = check_updates()
+    res_dict = res.to_dict()
+
+    if output_file:
+        try:
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(res_dict, f, indent=2)
+            sys.stdout.write(
+                f"Update check results saved to {output_file} ({len(res.updates)} updates available).\n"
+            )
+        except OSError as err:
+            sys.stderr.write(f"Failed to write output file: {err}\n")
+            return 1
+
+    if output_json:
+        sys.stdout.write(json.dumps(res_dict, indent=2) + "\n")
+    elif not output_file:
+        sys.stdout.write(
+            f"Update check completed: {len(res.updates)} updates available "
+            f"(WinGet available: {res.winget_available}, Warnings: {len(res.warnings)}, Errors: {len(res.errors)}).\n"
+        )
+
+    return 0 if not res.errors else 1
+
+
 def execute_upgrade_cli(
     package_id: Optional[str] = None,
     server_url: Optional[str] = None,
@@ -350,6 +385,25 @@ def build_parser() -> argparse.ArgumentParser:
         help=argparse.SUPPRESS,
     )
 
+    # check-updates command
+    check_updates_parser = subparsers.add_parser(
+        "check-updates",
+        help="Check for available WinGet updates (read-only)",
+    )
+    check_updates_parser.add_argument(
+        "--json",
+        dest="output_json",
+        action="store_true",
+        help="Print update check results as JSON",
+    )
+    check_updates_parser.add_argument(
+        "--output",
+        dest="output_file",
+        type=Path,
+        default=None,
+        help="Write update check JSON results to a file",
+    )
+
     return parser
 
 
@@ -380,6 +434,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         return execute_scan(
             server_url=args.server,
             config_path=getattr(args, "config_path", None),
+            output_json=getattr(args, "output_json", False),
+            output_file=getattr(args, "output_file", None),
+        )
+    elif args.command == "check-updates":
+        return execute_check_updates(
             output_json=getattr(args, "output_json", False),
             output_file=getattr(args, "output_file", None),
         )
