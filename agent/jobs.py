@@ -136,6 +136,8 @@ def report_job_progress(
     job_id: str,
     percent: int,
     step: str,
+    message: Optional[str] = None,
+    skipped: bool = False,
     timeout_seconds: int = 5,
 ) -> Tuple[bool, bool]:
     """Report progress for an active job.
@@ -148,10 +150,14 @@ def report_job_progress(
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
-    payload = {
+    payload: Dict[str, Any] = {
         "percent": percent,
         "step": step[:100],
     }
+    if message is not None:
+        payload["message"] = message[:256]
+    if skipped:
+        payload["skipped"] = True
 
     try:
         resp = requests.post(
@@ -185,21 +191,34 @@ class ThrottledProgressReporter:
         self.job_id = job_id
         self.min_interval = min_interval_seconds
         self.last_reported = 0.0
+        self.last_percent = 0
         self.is_revoked = False
 
-    def __call__(self, step: str, percent: int) -> None:
+    def __call__(
+        self,
+        step: str,
+        percent: int,
+        message: Optional[str] = None,
+        skipped: bool = False,
+        force: bool = False,
+    ) -> None:
         if self.is_revoked:
             return
 
+        safe_pct = max(self.last_percent, min(100, int(percent)))
+        self.last_percent = safe_pct
+
         now = time.perf_counter()
-        if (now - self.last_reported) >= self.min_interval or percent in (0, 100):
+        if force or (now - self.last_reported) >= self.min_interval or safe_pct in (0, 100):
             self.last_reported = now
             _, revoked = report_job_progress(
                 server_url=self.server_url,
                 token=self.token,
                 job_id=self.job_id,
-                percent=percent,
+                percent=safe_pct,
                 step=step,
+                message=message,
+                skipped=skipped,
             )
             if revoked:
                 self.is_revoked = True
@@ -415,6 +434,18 @@ def execute_single_job(
                     handle_revocation(config_path=config_path)
                     return False
                 return True
+
+            # Report submitting_results step (90%) before posting payload
+            progress_reporter(
+                "submitting_results",
+                90,
+                f"Submitting {len(scan_res.apps)} apps",
+                False,
+                force=True,
+            )
+            if progress_reporter.is_revoked:
+                handle_revocation(config_path=config_path)
+                return False
 
             # Convert result to API payload
             payload = convert_scan_result_to_api_payload(scan_res)

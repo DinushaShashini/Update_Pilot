@@ -185,8 +185,20 @@ agentScanRouter.post(
           }
         }
 
+        // Move job to matching_packages step while matching executes
+        await tx.scanJob.update({
+          where: { id: jobId },
+          data: {
+            progressStep: 'matching_packages',
+            progressPercent: Math.max(job.progressPercent, 90),
+            progressMessage: 'Matching discovered packages against catalog',
+          },
+        });
+
         // Execute matching for device applications within the transaction
         const matchSummary = await matchDeviceApplications(device.id, tx);
+
+        const summaryMessage = `${discovered_packages.length} apps: ${matchSummary.matchedCount} matched, ${matchSummary.ambiguousCount} ambiguous, ${matchSummary.unsupportedCount} unsupported`;
 
         // Set job status to succeeded with finishedAt, appCount, and match counts
         await tx.scanJob.update({
@@ -199,7 +211,8 @@ agentScanRouter.post(
             ambiguousCount: matchSummary.ambiguousCount,
             unsupportedCount: matchSummary.unsupportedCount,
             progressPercent: 100,
-            progressStep: 'completed',
+            progressStep: 'matching_packages',
+            progressMessage: summaryMessage,
             errorCode: 0,
           },
         });

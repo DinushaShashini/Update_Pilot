@@ -7,7 +7,12 @@ export interface ScanJob {
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'timed_out' | string;
   progressPercent: number;
   progressStep: string | null;
+  progressMessage?: string | null;
+  skippedSteps?: string[];
   appCount: number;
+  matchedCount?: number;
+  ambiguousCount?: number;
+  unsupportedCount?: number;
   errorCode?: number | null;
   errorMessage?: string | null;
   createdAt: string;

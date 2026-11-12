@@ -47,8 +47,8 @@ class TestScanInventoryOrchestrator(unittest.TestCase):
 
         progress_records = []
 
-        def track_progress(step, pct):
-            progress_records.append((step, pct))
+        def track_progress(step, pct, message="", skipped=False):
+            progress_records.append((step, pct, message, skipped))
 
         result = scan_inventory(
             progress_callback=track_progress,
@@ -60,18 +60,43 @@ class TestScanInventoryOrchestrator(unittest.TestCase):
         self.assertEqual(len(result.errors), 0)
         self.assertEqual(len(result.apps), 2)  # Git (merged) + 7-Zip (reg)
 
-        # Verify progress sequence
+        # Verify progress sequence (max_enrich=0 -> enriching_publishers skipped, weight redistributed)
         step_names = [s[0] for s in progress_records]
         self.assertEqual(step_names, [
-            "check_winget",
-            "winget_list",
-            "registry_scan",
-            "enrich_publishers",
-            "normalise_and_merge",
-            "completed",
+            "checking_winget",
+            "listing_winget",
+            "reading_registry",
+            "enriching_publishers",
+            "normalising_and_merging",
         ])
         percentages = [s[1] for s in progress_records]
-        self.assertEqual(percentages, [10, 35, 60, 75, 90, 100])
+        self.assertEqual(percentages, [6, 42, 66, 66, 78])
+        # Verify non-decreasing percentages
+        self.assertEqual(percentages, sorted(percentages))
+        # Verify enriching_publishers was marked skipped
+        self.assertTrue(progress_records[3][3])
+        # Verify count message
+        self.assertIn("Found 2 apps", progress_records[4][2])
+
+    @patch("agent.scanner.scan.enrich_apps_with_winget_show")
+    @patch("agent.scanner.scan.list_installed")
+    @patch("agent.scanner.scan.get_winget_version")
+    def test_scan_inventory_with_enrichment_uses_exact_weights(self, mock_ver, mock_list, mock_enrich):
+        mock_ver.return_value = "v1.29.380"
+        apps = [InstalledApp(name="Git", version="2.44.0", package_id="Git.Git", source="winget")]
+        mock_list.return_value = apps
+        mock_enrich.return_value = apps
+        reg_backend = FakeRegistryBackend(entries=[])
+
+        progress_records = []
+        scan_inventory(
+            progress_callback=lambda step, pct, msg="", skipped=False: progress_records.append((step, pct, msg, skipped)),
+            registry_backend=reg_backend,
+            max_enrich=5,
+        )
+
+        self.assertEqual([s[1] for s in progress_records], [5, 35, 55, 70, 80])
+        self.assertFalse(progress_records[3][3])  # enriching_publishers not skipped
 
     @patch("agent.scanner.scan.get_winget_version")
     def test_scan_inventory_winget_missing_continues_with_registry(self, mock_ver):

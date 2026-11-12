@@ -291,4 +291,76 @@ describe('ScanNowController Component', () => {
 
     vi.useRealTimers();
   });
+
+  it('renders step list with done, active, pending, skipped icons and aria-valuenow', async () => {
+    vi.spyOn(appsApi, 'triggerScan').mockResolvedValue({
+      success: true,
+      scanId: 'job-steps-1',
+    });
+
+    vi.spyOn(scansApi, 'fetchScanJob').mockResolvedValue({
+      id: 'job-steps-1',
+      deviceId: 'dev-123',
+      type: 'scan_inventory',
+      status: 'running',
+      progressPercent: 78,
+      progressStep: 'normalising_and_merging',
+      progressMessage: 'Found 87 apps',
+      skippedSteps: ['enriching_publishers'],
+      appCount: 0,
+      createdAt: new Date().toISOString(),
+    });
+
+    renderComponent();
+    fireEvent.click(screen.getByRole('button', { name: /scan now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('scan-steps-list')).toBeDefined();
+    });
+
+    const progressBar = screen.getByRole('progressbar');
+    expect(progressBar.getAttribute('aria-valuenow')).toBe('78');
+    expect(screen.getByTestId('scan-progress-step').textContent).toContain('Found 87 apps');
+
+    expect(screen.getByTestId('scan-step-checking_winget').getAttribute('data-step-status')).toBe('done');
+    expect(screen.getByTestId('scan-step-listing_winget').getAttribute('data-step-status')).toBe('done');
+    expect(screen.getByTestId('scan-step-reading_registry').getAttribute('data-step-status')).toBe('done');
+    expect(screen.getByTestId('scan-step-enriching_publishers').getAttribute('data-step-status')).toBe('skipped');
+    expect(screen.getByTestId('scan-step-normalising_and_merging').getAttribute('data-step-status')).toBe('active');
+    expect(screen.getByTestId('scan-step-submitting_results').getAttribute('data-step-status')).toBe('pending');
+    expect(screen.getByTestId('scan-step-matching_packages').getAttribute('data-step-status')).toBe('pending');
+  });
+
+  it('displays final match breakdown summary on completion', async () => {
+    vi.spyOn(appsApi, 'triggerScan').mockResolvedValue({
+      success: true,
+      scanId: 'job-summary-1',
+    });
+
+    vi.spyOn(scansApi, 'fetchScanJob').mockResolvedValue({
+      id: 'job-summary-1',
+      deviceId: 'dev-123',
+      type: 'scan_inventory',
+      status: 'succeeded',
+      progressPercent: 100,
+      progressStep: 'matching_packages',
+      appCount: 120,
+      matchedCount: 95,
+      ambiguousCount: 4,
+      unsupportedCount: 21,
+      createdAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
+    });
+
+    renderComponent();
+    fireEvent.click(screen.getByRole('button', { name: /scan now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('scan-match-summary')).toBeDefined();
+    });
+
+    expect(screen.getByTestId('scan-match-summary').textContent).toContain(
+      '120 apps: 95 matched, 4 ambiguous, 21 unsupported'
+    );
+  });
 });

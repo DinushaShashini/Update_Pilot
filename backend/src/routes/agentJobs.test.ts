@@ -236,14 +236,25 @@ describe('Agent Job Polling, Claiming & Progress API (/api/agent/jobs)', () => {
       deviceId: deviceA.id,
       status: 'running',
       progressPercent: 35,
-      progressStep: 'winget_list',
+      progressStep: 'listing_winget',
+      progressMessage: 'Found 40 WinGet apps',
+      skippedSteps: [],
     })) as unknown as typeof prisma.scanJob.findFirst;
 
-    prisma.scanJob.update = (async (args: { data: { progressPercent: number; progressStep: string } }) => ({
+    prisma.scanJob.update = (async (args: {
+      data: {
+        progressPercent: number;
+        progressStep: string;
+        progressMessage?: string;
+        skippedSteps?: string[];
+      };
+    }) => ({
       id: 'job-running-1',
       status: 'running',
       progressPercent: args.data.progressPercent,
       progressStep: args.data.progressStep,
+      progressMessage: args.data.progressMessage,
+      skippedSteps: args.data.skippedSteps,
     })) as unknown as typeof prisma.scanJob.update;
 
     try {
@@ -253,17 +264,45 @@ describe('Agent Job Polling, Claiming & Progress API (/api/agent/jobs)', () => {
           Authorization: `Bearer ${validToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ percent: 60, step: 'registry_scan' }),
+        body: JSON.stringify({
+          percent: 60,
+          step: 'reading_registry',
+          message: 'Found 87 apps',
+          skipped: false,
+        }),
       });
 
       assert.strictEqual(res.status, 200);
       const body = (await res.json()) as {
         success: boolean;
-        data: { job: { progressPercent: number; progressStep: string } };
+        data: { job: { progressPercent: number; progressStep: string; progressMessage: string; skippedSteps: string[] } };
       };
       assert.strictEqual(body.success, true);
       assert.strictEqual(body.data.job.progressPercent, 60);
-      assert.strictEqual(body.data.job.progressStep, 'registry_scan');
+      assert.strictEqual(body.data.job.progressStep, 'reading_registry');
+      assert.strictEqual(body.data.job.progressMessage, 'Found 87 apps');
+
+      // Test skipped step and non-decreasing percent (sending 10% when already at 35% stays 35%)
+      const resSkipped = await fetch(`${baseUrl}/api/agent/jobs/job-running-1/progress`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${validToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          percent: 10,
+          step: 'enriching_publishers',
+          message: 'Skipped (disabled)',
+          skipped: true,
+        }),
+      });
+      assert.strictEqual(resSkipped.status, 200);
+      const skippedBody = (await resSkipped.json()) as {
+        success: boolean;
+        data: { job: { progressPercent: number; skippedSteps: string[] } };
+      };
+      assert.strictEqual(skippedBody.data.job.progressPercent, 35);
+      assert.deepStrictEqual(skippedBody.data.job.skippedSteps, ['enriching_publishers']);
     } finally {
       prisma.agentCredential.findUnique = originalCredFindUnique;
       prisma.scanJob.findFirst = originalScanFindFirst;

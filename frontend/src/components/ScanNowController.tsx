@@ -15,6 +15,18 @@ export interface ScanNowControllerProps {
 
 export type ScanStatus = 'idle' | 'queued' | 'running' | 'succeeded' | 'failed';
 
+export const SCAN_PROGRESS_STEPS = [
+  { key: 'checking_winget', label: 'Checking WinGet' },
+  { key: 'listing_winget', label: 'Listing WinGet packages' },
+  { key: 'reading_registry', label: 'Reading Windows Registry' },
+  { key: 'enriching_publishers', label: 'Enriching publishers' },
+  { key: 'normalising_and_merging', label: 'Normalising & merging' },
+  { key: 'submitting_results', label: 'Submitting results' },
+  { key: 'matching_packages', label: 'Matching packages' },
+] as const;
+
+export type StepVisualState = 'done' | 'active' | 'pending' | 'skipped';
+
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_TIME_MS = 600000; // 10 minutes max polling time
 
@@ -30,7 +42,14 @@ export const ScanNowController: React.FC<ScanNowControllerProps> = ({
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [progressPercent, setProgressPercent] = useState<number>(0);
   const [progressStep, setProgressStep] = useState<string>('');
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  const [skippedSteps, setSkippedSteps] = useState<string[]>([]);
   const [appCount, setAppCount] = useState<number>(0);
+  const [matchCounts, setMatchCounts] = useState<{
+    matched: number;
+    ambiguous: number;
+    unsupported: number;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,16 +91,39 @@ export const ScanNowController: React.FC<ScanNowControllerProps> = ({
         setStatus('queued');
         setProgressPercent(0);
         setProgressStep('Waiting for the agent...');
+        setProgressMessage(job.progressMessage || null);
       } else if (job.status === 'running') {
         setStatus('running');
-        setProgressPercent(Math.max(5, Math.min(99, job.progressPercent || 10)));
-        setProgressStep(job.progressStep || 'Scanning host software...');
+        // Honest, strictly non-decreasing percentage
+        setProgressPercent((prev) => Math.max(prev, Math.min(99, job.progressPercent ?? 0)));
+        setProgressStep(job.progressStep || 'checking_winget');
+        setProgressMessage(job.progressMessage || null);
+        if (Array.isArray(job.skippedSteps)) {
+          setSkippedSteps(job.skippedSteps);
+        }
       } else if (job.status === 'succeeded') {
         stopPolling();
         setStatus('succeeded');
         setProgressPercent(100);
-        setProgressStep('Completed');
+        setProgressStep('matching_packages');
+        setProgressMessage(job.progressMessage || null);
         setAppCount(job.appCount || 0);
+        if (
+          typeof job.matchedCount === 'number' &&
+          typeof job.ambiguousCount === 'number' &&
+          typeof job.unsupportedCount === 'number'
+        ) {
+          setMatchCounts({
+            matched: job.matchedCount,
+            ambiguous: job.ambiguousCount,
+            unsupported: job.unsupportedCount,
+          });
+        } else {
+          setMatchCounts(null);
+        }
+        if (Array.isArray(job.skippedSteps)) {
+          setSkippedSteps(job.skippedSteps);
+        }
         if (onScanSuccess) {
           try {
             await onScanSuccess();
@@ -148,6 +190,9 @@ export const ScanNowController: React.FC<ScanNowControllerProps> = ({
     setStatus('queued');
     setProgressPercent(0);
     setProgressStep('Waiting for the agent...');
+    setProgressMessage(null);
+    setSkippedSteps([]);
+    setMatchCounts(null);
     setErrorMessage(null);
 
     try {
@@ -257,9 +302,45 @@ export const ScanNowController: React.FC<ScanNowControllerProps> = ({
               />
             </div>
             <div className="scan-progress-meta">
-              <span data-testid="scan-progress-step">{progressStep}</span>
+              <span data-testid="scan-progress-step">
+                {progressMessage ? `${progressStep} — ${progressMessage}` : progressStep}
+              </span>
               <span>{progressPercent}%</span>
             </div>
+            <ul className="scan-steps-list" data-testid="scan-steps-list">
+              {SCAN_PROGRESS_STEPS.map((step, idx) => {
+                const activeIdx = SCAN_PROGRESS_STEPS.findIndex((s) => s.key === progressStep);
+                let stepState: StepVisualState = 'pending';
+                if (skippedSteps.includes(step.key)) {
+                  stepState = 'skipped';
+                } else if (activeIdx !== -1 && idx < activeIdx) {
+                  stepState = 'done';
+                } else if (activeIdx === idx) {
+                  stepState = 'active';
+                }
+
+                const iconMap: Record<StepVisualState, string> = {
+                  done: '✔',
+                  active: '●',
+                  pending: '○',
+                  skipped: '⏭',
+                };
+
+                return (
+                  <li
+                    key={step.key}
+                    className={`scan-step-item ${stepState}`}
+                    data-testid={`scan-step-${step.key}`}
+                    data-step-status={stepState}
+                  >
+                    <span className="scan-step-icon" aria-hidden="true">
+                      {iconMap[stepState]}
+                    </span>
+                    <span className="scan-step-label">{step.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       )}
@@ -276,6 +357,15 @@ export const ScanNowController: React.FC<ScanNowControllerProps> = ({
             <div className="scan-success-row">
               <span aria-hidden="true">✔</span>
               <span>Found {appCount} applications</span>
+              {matchCounts ? (
+                <span className="scan-match-summary" data-testid="scan-match-summary">
+                  ({appCount} apps: {matchCounts.matched} matched, {matchCounts.ambiguous} ambiguous, {matchCounts.unsupported} unsupported)
+                </span>
+              ) : progressMessage ? (
+                <span className="scan-match-summary" data-testid="scan-match-summary">
+                  ({progressMessage})
+                </span>
+              ) : null}
               <Link to="/applications" className="scan-applications-link">
                 View in Applications
               </Link>

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAgent } from '../middleware/auth.js';
 
@@ -8,6 +9,8 @@ export const agentJobRouter = Router();
 const progressSchema = z.object({
   percent: z.number().int().min(0).max(100),
   step: z.string().max(100).optional(),
+  message: z.string().max(256).optional(),
+  skipped: z.boolean().optional(),
 });
 
 // GET /api/agent/jobs - Poll oldest queued job for authenticated agent device
@@ -126,7 +129,7 @@ agentJobRouter.post('/agent/jobs/:id/progress', requireAgent, async (req: Reques
     return;
   }
 
-  const { percent, step } = parseResult.data;
+  const { percent, step, message, skipped } = parseResult.data;
 
   try {
     // 1. Check job belongs to this device
@@ -160,12 +163,19 @@ agentJobRouter.post('/agent/jobs/:id/progress', requireAgent, async (req: Reques
     // 3. Monotonically increasing progress
     const updatedPercent = Math.max(job.progressPercent, percent);
     const updatedStep = step || job.progressStep;
+    const updatedMessage = message !== undefined ? message : job.progressMessage;
+
+    const currentSkipped = Array.isArray(job.skippedSteps) ? (job.skippedSteps as string[]) : [];
+    const nextSkipped =
+      skipped && step && !currentSkipped.includes(step) ? [...currentSkipped, step] : currentSkipped;
 
     const updatedJob = await prisma.scanJob.update({
       where: { id: jobId },
       data: {
         progressPercent: updatedPercent,
         progressStep: updatedStep,
+        progressMessage: updatedMessage,
+        skippedSteps: nextSkipped as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -177,6 +187,8 @@ agentJobRouter.post('/agent/jobs/:id/progress', requireAgent, async (req: Reques
           status: updatedJob.status,
           progressPercent: updatedJob.progressPercent,
           progressStep: updatedJob.progressStep,
+          progressMessage: updatedJob.progressMessage,
+          skippedSteps: updatedJob.skippedSteps,
         },
       },
     });

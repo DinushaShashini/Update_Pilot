@@ -70,6 +70,8 @@ model ScanJob {
   status            String    @default("queued") @db.VarChar(30)
   progressPercent   Int       @default(0) @map("progress_percent")
   progressStep      String?   @map("progress_step") @db.VarChar(100)
+  progressMessage   String?   @map("progress_message") @db.VarChar(256)
+  skippedSteps      Json?     @default("[]") @map("skipped_steps")
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
   finishedAt        DateTime? @map("finished_at") @db.Timestamptz(6)
