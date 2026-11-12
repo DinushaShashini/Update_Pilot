@@ -254,56 +254,68 @@ Returns aggregate cards for the active device.
 
 ## 5. Applications Inventory (`applications`)
 
-### 5.1 Search, Filter, Sort & Paginate Applications
-- **Method & Path**: `GET /api/v1/devices/:id/applications`
+### 5.1 List & Filter Applications
+- **Method & Path**: `GET /api/devices/:id/applications` (alias: `GET /api/v1/devices/:id/applications`)
 - **Auth**: `Bearer <JWT>`
 - **Query Parameters**:
-  - `search` (`string`, optional): Case-insensitive match on `name` or `package_id`.
-  - `status` (`string`, optional): `all` | `update_available` | `supported` | `unsupported` (default: `all`).
-  - `source` (`string`, optional): `all` | `winget` | `msstore` | `none` (default: `all`).
-  - `sort_by` (`string`, optional): `name` | `package_id` | `installed_version` | `status` (default: `name`).
-  - `sort_order` (`string`, optional): `asc` | `desc` (default: `asc`).
-  - `page` (`integer`, optional): Page number starting at 1 (default: `1`).
-  - `limit` (`integer`, optional): Page size (default: `20`, max: `100`).
+  - `includeRemoved` (`boolean`, optional): Include uninstalled apps (`isInstalled = false`, default: `false`).
+  - `matchStatus` (`string`, optional): Filter by matching state (`matched` | `ambiguous` | `unsupported` | `pending`).
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "items": [
+    "total": 2,
+    "applications": [
       {
         "id": "33333333-3333-3333-3333-333333333333",
-        "package_id": "Git.Git",
         "name": "Git for Windows",
-        "installed_version": "2.50.0.2",
-        "available_version": "2.56.0.3",
+        "version": "2.50.0.2",
+        "publisher": "The Git Development Community",
+        "packageId": "Git.Git",
         "source": "winget",
-        "is_managed": true,
-        "status": "UPDATE_AVAILABLE",
-        "last_scanned_at": "2026-10-30T14:15:00Z"
-      },
-      {
-        "id": "33333333-3333-3333-3333-333333333334",
-        "package_id": "Python.Python.3.14",
-        "name": "Python 3.14.0 (64-bit)",
-        "installed_version": "3.14.0",
-        "available_version": null,
-        "source": "winget",
-        "is_managed": true,
-        "status": "SUPPORTED",
-        "last_scanned_at": "2026-10-30T14:15:00Z"
+        "isInstalled": true,
+        "isManaged": true,
+        "installedVersion": "2.50.0.2",
+        "availableVersion": "2.56.0.3",
+        "matchStatus": "matched",
+        "matchReason": "WINGET_ID_PRESENT",
+        "matchMessage": "Matched via verified WinGet package identifier reported directly by the Windows package manager.",
+        "matchNextStep": "Updates can be queried and approved through WinGet repository manifests.",
+        "matchedPackageId": "Git.Git",
+        "matchConfidence": 1.0,
+        "matchMethod": "winget_id",
+        "candidates": [],
+        "lastSeenAt": "2026-11-12T14:15:00.000Z",
+        "firstSeenAt": "2026-11-11T10:00:00.000Z"
       }
-    ],
-    "pagination": {
-      "total_items": 196,
-      "total_pages": 10,
-      "current_page": 1,
-      "page_size": 20
-    }
+    ]
   }
 }
 ```
-- **Error Codes**: `400 Bad Request` (invalid sort parameter), `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**: `401 Unauthorized`, `404 Not Found` (`DEVICE_NOT_FOUND`).
+
+---
+
+### 5.3 Rerun Package Matching (`rematch`)
+Reruns conservative package matching across all installed applications for a device without triggering a new agent scan. Owner-only and recorded in `audit_events` (`APPLICATIONS_REMATCHED`).
+- **Method & Path**: `POST /api/devices/:id/rematch`
+- **Auth**: `Bearer <JWT>`
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "deviceId": "22222222-2222-2222-2222-222222222222",
+    "totalProcessed": 120,
+    "updatedRowsCount": 3,
+    "matchedCount": 95,
+    "ambiguousCount": 4,
+    "unsupportedCount": 21
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized`, `404 Not Found` (`DEVICE_NOT_FOUND`).
 
 ---
 
@@ -784,28 +796,37 @@ Atomically claims a queued job, transitioning it from `queued` to `running` and 
 ---
 
 ### 9.6 Report Job Live Progress (`progress`)
-Reports incremental progress percentage and current step name while a job is running.
+Reports incremental progress percentage, current step name, optional count message, and skipped step indicator while a job is running.
 - **Method & Path**: `POST /api/agent/jobs/:id/progress` (alias: `POST /api/v1/agent/jobs/:id/progress`)
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
 - **Request Body**:
 ```json
 {
-  "percent": 45,
-  "step": "reading_registry"
+  "percent": 66,
+  "step": "reading_registry",
+  "message": "Found 87 registry entries",
+  "skipped": false
 }
 ```
 - **Backend Validation**:
   - `percent`: integer between 0 and 100. Progress cannot decrease.
-  - `step`: string (max 100 characters).
+  - `step`: optional string (max 100 characters).
+  - `message`: optional string (max 256 characters).
+  - `skipped`: optional boolean (if true, records `step` in `skippedSteps`).
   - Job must belong to agent's device and currently have status `running`.
 - **Success Response (200 OK)**:
 ```json
 {
   "success": true,
   "data": {
-    "jobId": "66666666-6666-6666-6666-666666666666",
-    "progressPercent": 45,
-    "progressStep": "reading_registry"
+    "job": {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "status": "running",
+      "progressPercent": 66,
+      "progressStep": "reading_registry",
+      "progressMessage": "Found 87 registry entries",
+      "skippedSteps": []
+    }
   }
 }
 ```

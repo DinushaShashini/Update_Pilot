@@ -57,21 +57,24 @@ sequenceDiagram
     end
 
     %% Agent Execution & Progress
-    Agent->>Agent: Execute scan_inventory (WinGet + Registry inspection)
+    Agent->>Agent: Execute scan_inventory (checking_winget -> listing_winget -> reading_registry -> enriching_publishers -> normalising_and_merging)
     opt Throttled live progress (at most every 2s)
-        Agent->>Backend: POST /api/agent/jobs/:id/progress { percent, step }
-        Backend->>DB: UPDATE scan_jobs SET progressPercent, progressStep WHERE status = 'running'
+        Agent->>Backend: POST /api/agent/jobs/:id/progress { percent, step, message, skipped }
+        Backend->>DB: UPDATE scan_jobs SET progressPercent, progressStep, progressMessage, skippedSteps WHERE status = 'running'
         Backend-->>Agent: 200 OK
     end
 
     %% Scan Result Submission
     alt Scan Succeeded
+        Agent->>Backend: POST /api/agent/jobs/:id/progress { step: "submitting_results", percent: 90 }
         Agent->>Backend: POST /api/agent/scans/:id/results (Payload: discovered_packages <= 5000)
         Backend->>Backend: Validate payload via Zod schema & enforce 2MB limit
         Backend->>DB: BEGIN TRANSACTION
         Backend->>DB: Upsert applications (match by packageId or name)
         Backend->>DB: Mark unseen applications for device as isInstalled = false
-        Backend->>DB: UPDATE scan_jobs (status = "succeeded", finishedAt = NOW(), appCount)
+        Backend->>DB: UPDATE scan_jobs (progressStep = "matching_packages", progressPercent >= 90)
+        Backend->>DB: Run conservative package matching (exact WinGet ID + name/publisher fallback)
+        Backend->>DB: UPDATE scan_jobs (status = "succeeded", finishedAt = NOW(), appCount, matchedCount, ambiguousCount, unsupportedCount, progressPercent = 100)
         Backend->>DB: UPDATE devices (lastSeenAt = NOW())
         Backend->>DB: INSERT audit_events (SCAN_SUCCEEDED)
         Backend->>DB: COMMIT TRANSACTION
