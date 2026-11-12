@@ -65,6 +65,8 @@ deviceDataRouter.get(
           isManaged: app.isManaged,
           installedVersion: app.installedVersion,
           availableVersion: app.availableVersion,
+          updateStatus: app.updateStatus || 'not_checked',
+          updateCheckedAt: app.updateCheckedAt ? new Date(app.updateCheckedAt).toISOString() : null,
           matchStatus: app.matchStatus || 'pending',
           matchReason: app.matchReason || null,
           matchMessage: reasonMeta.message,

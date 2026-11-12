@@ -4,18 +4,20 @@ import { requireAuth } from '../middleware/auth.js';
 
 export const scanRouter = Router();
 
-// POST /api/devices/:id/scans - Queue a new scan job for a device
-scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  const deviceId = String(req.params.id);
-  const user = req.user!;
-
+async function createDeviceJob(
+  deviceId: string,
+  userId: string,
+  jobType: 'scan_inventory' | 'check_updates',
+  auditEventType: 'SCAN_QUEUED' | 'UPDATE_CHECK_QUEUED',
+  res: Response
+): Promise<void> {
   try {
     // 1. Verify device exists and belongs to the authenticated user
     const device = await prisma.device.findUnique({
       where: { id: deviceId },
     });
 
-    if (!device || device.userId !== user.id) {
+    if (!device || device.userId !== userId) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -23,35 +25,36 @@ scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Res
       return;
     }
 
-    // 2. Concurrency rule: strictly one active scan per device
-    const activeScan = await prisma.scanJob.findFirst({
+    // 2. Concurrency rule: strictly one active job of this type per device
+    const activeJob = await prisma.scanJob.findFirst({
       where: {
         deviceId: device.id,
+        type: jobType,
         status: { in: ['queued', 'running'] },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (activeScan) {
+    if (activeJob) {
       res.status(409).json({
         success: false,
         error: {
-          code: 'ACTIVE_SCAN_EXISTS',
-          message: 'An active scan is already queued or running for this device.',
-          existingJobId: activeScan.id,
-          status: activeScan.status,
+          code: jobType === 'scan_inventory' ? 'ACTIVE_SCAN_EXISTS' : 'ACTIVE_JOB_EXISTS',
+          message: `An active ${activeJob.type} job is already queued or running for this device.`,
+          existingJobId: activeJob.id,
+          status: activeJob.status,
         },
       });
       return;
     }
 
     // 3. Create the queued ScanJob and write an audit event
-    const [scanJob] = await prisma.$transaction([
+    const [job] = await prisma.$transaction([
       prisma.scanJob.create({
         data: {
           deviceId: device.id,
-          requestedByUserId: user.id,
-          type: 'scan_inventory',
+          requestedByUserId: userId,
+          type: jobType,
           status: 'queued',
           progressPercent: 0,
           progressStep: 'queued',
@@ -59,12 +62,12 @@ scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Res
       }),
       prisma.auditEvent.create({
         data: {
-          userId: user.id,
+          userId,
           deviceId: device.id,
-          eventType: 'SCAN_QUEUED',
+          eventType: auditEventType,
           entityType: 'scan_jobs',
           metadata: {
-            type: 'scan_inventory',
+            type: jobType,
             trigger: 'MANUAL',
           },
         },
@@ -74,9 +77,56 @@ scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Res
     res.status(201).json({
       success: true,
       data: {
-        job: scanJob,
+        job,
       },
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+}
+
+// POST /api/devices/:id/scans - Queue a new scan job for a device
+scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  await createDeviceJob(String(req.params.id), req.user!.id, 'scan_inventory', 'SCAN_QUEUED', res);
+});
+
+// POST /api/devices/:id/update-checks - Queue a new check_updates job for a device
+scanRouter.post('/devices/:id/update-checks', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  await createDeviceJob(String(req.params.id), req.user!.id, 'check_updates', 'UPDATE_CHECK_QUEUED', res);
+});
+
+// GET /api/devices/:id/update-checks/:jobId - Retrieve specific update-check job details
+scanRouter.get('/devices/:id/update-checks/:jobId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const jobId = String(req.params.jobId);
+  const user = req.user!;
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    const job = await prisma.scanJob.findFirst({
+      where: { id: jobId, deviceId: device.id, type: 'check_updates' },
+    });
+
+    if (!job) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'JOB_NOT_FOUND', message: 'Update-check job not found' },
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: { job } });
   } catch (error) {
     res.status(500).json({
       success: false,

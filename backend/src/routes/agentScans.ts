@@ -237,6 +237,33 @@ agentScanRouter.post(
             },
           },
         });
+
+        // Automatically queue an update-check job after each successful scan
+        if (typeof tx.scanJob?.create === 'function') {
+          const existingUpdateCheck =
+            typeof tx.scanJob?.findFirst === 'function'
+              ? await tx.scanJob.findFirst({
+                  where: {
+                    deviceId: device.id,
+                    type: 'check_updates',
+                    status: { in: ['queued', 'running'] },
+                  },
+                })
+              : null;
+
+          if (!existingUpdateCheck) {
+            await tx.scanJob.create({
+              data: {
+                deviceId: device.id,
+                requestedByUserId: job.requestedByUserId,
+                type: 'check_updates',
+                status: 'queued',
+                progressPercent: 0,
+                progressStep: 'queued',
+              },
+            });
+          }
+        }
       });
 
       res.status(200).json({

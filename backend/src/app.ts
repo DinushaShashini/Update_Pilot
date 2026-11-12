@@ -7,6 +7,7 @@ import { signToken } from './middleware/auth.js';
 import { scanRouter } from './routes/scans.js';
 import { agentJobRouter } from './routes/agentJobs.js';
 import { agentScanRouter } from './routes/agentScans.js';
+import { agentUpdateRouter } from './routes/agentUpdates.js';
 import { deviceDataRouter } from './routes/deviceData.js';
 
 export const app = express();
@@ -19,8 +20,10 @@ app.use(
   })
 );
 
-// Agent scan result routes have custom body limits (e.g. 2MB for inventory)
+// Agent scan & update-check result routes have custom body limits (2MB)
 app.use('/api', agentScanRouter);
+app.use('/api', agentUpdateRouter);
+app.use('/api/v1', agentUpdateRouter);
 
 // Body parsing
 app.use(express.json());

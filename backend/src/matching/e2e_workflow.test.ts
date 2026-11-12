@@ -452,9 +452,10 @@ describe('Complete Scanning & Matching Workflow E2E Integration', () => {
       headers: { Authorization: `Bearer ${userJwt}` },
     });
     const histBody = (await histRes.json()) as { data: Array<Record<string, unknown>> };
-    assert.equal(histBody.data.length, 1);
-    assert.equal(histBody.data[0].status, 'succeeded');
-    assert.equal(histBody.data[0].appCount, 7);
+    assert.equal(histBody.data.length, 2); // 1 succeeded scan_inventory + 1 auto-queued check_updates
+    const succeededScan = histBody.data.find((h) => h.status === 'succeeded');
+    assert.ok(succeededScan);
+    assert.equal(succeededScan.appCount, 7);
   });
 
   it('handles WinGet-missing registry-only scan, version change + removal on second scan, failed scan, and rematch after catalog update', async () => {
