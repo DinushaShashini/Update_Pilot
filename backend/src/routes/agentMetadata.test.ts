@@ -384,6 +384,54 @@ describe('Package Metadata Job & Result Storage API', () => {
     assert.strictEqual(dbJobs[jobId].status, 'succeeded');
   });
 
+  it('sanitizes malicious URLs, drops non-https schemes, strips credentials, and truncates text', async () => {
+    resetDb();
+
+    const jobId = nextId('job');
+    dbJobs[jobId] = {
+      id: jobId,
+      deviceId,
+      type: 'get_package_metadata',
+      status: 'running',
+    };
+
+    const metadataPayload = {
+      packages: [
+        {
+          package_id: 'Git.Git',
+          version: '2.56.0',
+          publisher: 'Git Authors\x00\x08',
+          homepage_url: 'javascript:alert(1)', // should be dropped -> null
+          publisher_url: 'http://insecure.example.com', // should be dropped -> null
+          release_notes_url: 'https://user:password@git-scm.com/relnotes', // should strip credentials
+          release_notes_text: 'Clean text with\x07 control chars',
+          installer_type: 'inno',
+          fetch_status: 'success',
+        },
+      ],
+      warnings: [],
+      errors: [],
+    };
+
+    const submitRes = await fetch(`${baseUrl}/api/agent/metadata/${jobId}/results`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${agentToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(metadataPayload),
+    });
+
+    assert.strictEqual(submitRes.status, 200);
+
+    const cached = dbMeta['git.git@2.56.0'];
+    assert.ok(cached);
+    assert.strictEqual(cached.homepageUrl, null, 'javascript: URL must be dropped');
+    assert.strictEqual(cached.releaseNotesUrl, 'https://git-scm.com/relnotes', 'Credentials must be stripped');
+    assert.strictEqual(cached.publisher, 'Git Authors', 'Control characters must be removed');
+    assert.strictEqual(cached.releaseNotesSummary, 'Clean text with control chars');
+  });
+
   it('agent submits metadata failure and marks job failed', async () => {
     resetDb();
 

@@ -1,5 +1,11 @@
 import { prisma } from '../lib/prisma.js';
 import type { PackageMetadata, Prisma } from '@prisma/client';
+import {
+  sanitizeHttpsUrl,
+  sanitizePlainText,
+  MAX_RELEASE_NOTES_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '../security/sanitizer.js';
 
 export type DatabaseClient = Prisma.TransactionClient | typeof prisma;
 
@@ -85,6 +91,16 @@ export async function upsertPackageMetadata(
   const normalizedId = data.packageId.trim();
   const normalizedVer = data.version.trim();
 
+  // Validate and sanitize URLs (strictly https) and text fields
+  const cleanHomepage = data.homepageUrl ? sanitizeHttpsUrl(data.homepageUrl).url : null;
+  const cleanReleaseNotesUrl = data.releaseNotesUrl ? sanitizeHttpsUrl(data.releaseNotesUrl).url : null;
+  const cleanNotesSummary = data.releaseNotesSummary
+    ? sanitizePlainText(data.releaseNotesSummary, MAX_RELEASE_NOTES_LENGTH).text
+    : null;
+  const cleanPublisher = data.publisher
+    ? sanitizePlainText(data.publisher, MAX_SHORT_TEXT_LENGTH).text
+    : null;
+
   return db.packageMetadata.upsert({
     where: {
       packageId_version: {
@@ -93,10 +109,10 @@ export async function upsertPackageMetadata(
       },
     },
     update: {
-      publisher: data.publisher ?? null,
-      homepageUrl: data.homepageUrl ?? null,
-      releaseNotesUrl: data.releaseNotesUrl ?? null,
-      releaseNotesSummary: data.releaseNotesSummary ?? null,
+      publisher: cleanPublisher,
+      homepageUrl: cleanHomepage,
+      releaseNotesUrl: cleanReleaseNotesUrl,
+      releaseNotesSummary: cleanNotesSummary,
       fetchStatus: data.fetchStatus || 'success',
       fetchedAt: now,
       expiresAt,
@@ -104,10 +120,10 @@ export async function upsertPackageMetadata(
     create: {
       packageId: normalizedId,
       version: normalizedVer,
-      publisher: data.publisher ?? null,
-      homepageUrl: data.homepageUrl ?? null,
-      releaseNotesUrl: data.releaseNotesUrl ?? null,
-      releaseNotesSummary: data.releaseNotesSummary ?? null,
+      publisher: cleanPublisher,
+      homepageUrl: cleanHomepage,
+      releaseNotesUrl: cleanReleaseNotesUrl,
+      releaseNotesSummary: cleanNotesSummary,
       fetchStatus: data.fetchStatus || 'success',
       fetchedAt: now,
       expiresAt,
