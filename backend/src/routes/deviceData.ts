@@ -1,8 +1,10 @@
 import { Router, type Request, type Response } from 'express';
+import type { PackageMetadata } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getMatchReasonMetadata } from '../matching/reasons.js';
 import { matchDeviceApplications } from '../matching/service.js';
+import { buildReleaseInfo } from '../metadata/releaseInfo.js';
 
 export const deviceDataRouter = Router();
 
@@ -56,17 +58,48 @@ deviceDataRouter.get(
         orderBy: { name: 'asc' },
       });
 
+      const pkgIds = applications
+        .map((a) => a.matchedPackageId || a.packageId)
+        .filter((id): id is string => Boolean(id));
+
+      let metadataList: PackageMetadata[] = [];
+      try {
+        if (pkgIds.length > 0 && prisma.packageMetadata) {
+          metadataList = await prisma.packageMetadata.findMany({
+            where: { packageId: { in: pkgIds } },
+          });
+        }
+      } catch {
+        metadataList = [];
+      }
+
+      const metaMap = new Map<string, PackageMetadata>();
+      for (const m of metadataList) {
+        metaMap.set(`${m.packageId.toLowerCase()}:${m.version.toLowerCase()}`, m);
+        if (!metaMap.has(m.packageId.toLowerCase())) {
+          metaMap.set(m.packageId.toLowerCase(), m);
+        }
+      }
+
       const formatted = applications.map((app) => {
         const lastSeen = app.lastScannedAt ? new Date(app.lastScannedAt).toISOString() : new Date().toISOString();
         const firstSeen = app.createdAt ? new Date(app.createdAt).toISOString() : new Date().toISOString();
         const updated = app.updatedAt ? new Date(app.updatedAt).toISOString() : new Date().toISOString();
         const reasonMeta = getMatchReasonMetadata(app.matchReason);
 
+        const pkgId = app.matchedPackageId || app.packageId;
+        const targetVer = app.availableVersion;
+        const meta = (pkgId && targetVer)
+          ? metaMap.get(`${pkgId.toLowerCase()}:${targetVer.toLowerCase()}`) || metaMap.get(pkgId.toLowerCase())
+          : (pkgId ? metaMap.get(pkgId.toLowerCase()) : null);
+
+        const releaseInfo = buildReleaseInfo(app.availableVersion, meta);
+
         return {
           id: app.id,
           name: app.name,
           version: app.installedVersion,
-          publisher: app.publisher,
+          publisher: meta?.publisher || app.publisher,
           packageId: app.packageId,
           source: app.source,
           lastSeenAt: lastSeen,
@@ -88,6 +121,13 @@ deviceDataRouter.get(
           lastScannedAt: lastSeen,
           createdAt: firstSeen,
           updatedAt: updated,
+          // Release info & source links
+          releaseInfo,
+          officialSourceLink: releaseInfo.officialSourceLink,
+          releaseNotesLink: releaseInfo.releaseNotesLink,
+          releaseNotesSummary: releaseInfo.releaseNotesSummary,
+          metadataStatus: releaseInfo.status,
+          missingMessages: releaseInfo.missingMessages,
         };
       });
 
@@ -153,6 +193,305 @@ deviceDataRouter.post(
         success: true,
         data: summary,
       });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// GET /api/devices/:id/applications/:appId - Detailed application view with release info
+deviceDataRouter.get(
+  ['/devices/:id/applications/:appId', '/v1/devices/:id/applications/:appId'],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const deviceId = String(req.params.id);
+    const appId = String(req.params.appId);
+    const user = req.user!;
+
+    try {
+      const device = await prisma.device.findUnique({ where: { id: deviceId } });
+      if (!device || device.userId !== user.id) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+        });
+        return;
+      }
+
+      const app = await prisma.application.findFirst({
+        where: {
+          deviceId: device.id,
+          OR: [{ id: appId }, { packageId: appId }, { matchedPackageId: appId }],
+        },
+      });
+
+      if (!app) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'APPLICATION_NOT_FOUND', message: 'Application not found' },
+        });
+        return;
+      }
+
+      const pkgId = app.matchedPackageId || app.packageId;
+      let meta: PackageMetadata | null = null;
+      if (pkgId) {
+        if (app.availableVersion) {
+          meta = await prisma.packageMetadata.findUnique({
+            where: { packageId_version: { packageId: pkgId, version: app.availableVersion } },
+          });
+        }
+        if (!meta) {
+          meta = await prisma.packageMetadata.findFirst({
+            where: { packageId: pkgId },
+            orderBy: { fetchedAt: 'desc' },
+          });
+        }
+      }
+
+      const releaseInfo = buildReleaseInfo(app.availableVersion, meta);
+      const reasonMeta = getMatchReasonMetadata(app.matchReason);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          id: app.id,
+          deviceId: app.deviceId,
+          name: app.name,
+          packageId: app.packageId || app.matchedPackageId,
+          installedVersion: app.installedVersion,
+          availableVersion: app.availableVersion,
+          updateStatus: app.updateStatus || 'not_checked',
+          updateCheckedAt: app.updateCheckedAt ? app.updateCheckedAt.toISOString() : null,
+          isInstalled: app.isInstalled,
+          isManaged: app.isManaged,
+          source: app.source,
+          publisher: meta?.publisher || app.publisher,
+          matchStatus: app.matchStatus || 'pending',
+          matchReason: app.matchReason || null,
+          matchMessage: reasonMeta.message,
+          matchNextStep: reasonMeta.nextStep,
+          matchedPackageId: app.matchedPackageId || null,
+          matchConfidence: app.matchConfidence,
+          matchMethod: app.matchMethod || 'none',
+          candidates: app.candidates || [],
+          releaseInfo,
+          // Release info top-level fields
+          version: releaseInfo.version,
+          officialSourceLink: releaseInfo.officialSourceLink,
+          releaseNotesLink: releaseInfo.releaseNotesLink,
+          releaseNotesSummary: releaseInfo.releaseNotesSummary,
+          fetchedAt: releaseInfo.fetchedAt,
+          metadataStatus: releaseInfo.status,
+          status: releaseInfo.status,
+          missingMessages: releaseInfo.missingMessages,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// GET /api/devices/:id/updates/:updateId - Update details API with release info
+deviceDataRouter.get(
+  ['/devices/:id/updates/:updateId', '/v1/devices/:id/updates/:updateId'],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const deviceId = String(req.params.id);
+    const updateId = String(req.params.updateId);
+    const user = req.user!;
+
+    try {
+      const device = await prisma.device.findUnique({ where: { id: deviceId } });
+      if (!device || device.userId !== user.id) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+        });
+        return;
+      }
+
+      const app = await prisma.application.findFirst({
+        where: {
+          deviceId: device.id,
+          OR: [{ id: updateId }, { packageId: updateId }, { matchedPackageId: updateId }],
+        },
+      });
+
+      if (!app) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'UPDATE_NOT_FOUND', message: 'Update record not found' },
+        });
+        return;
+      }
+
+      const pkgId = app.matchedPackageId || app.packageId;
+      let meta: PackageMetadata | null = null;
+      if (pkgId) {
+        if (app.availableVersion) {
+          meta = await prisma.packageMetadata.findUnique({
+            where: { packageId_version: { packageId: pkgId, version: app.availableVersion } },
+          });
+        }
+        if (!meta) {
+          meta = await prisma.packageMetadata.findFirst({
+            where: { packageId: pkgId },
+            orderBy: { fetchedAt: 'desc' },
+          });
+        }
+      }
+
+      const releaseInfo = buildReleaseInfo(app.availableVersion, meta);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          id: app.id,
+          deviceId: app.deviceId,
+          name: app.name,
+          packageId: app.packageId || app.matchedPackageId,
+          currentVersion: app.installedVersion,
+          installedVersion: app.installedVersion,
+          targetVersion: app.availableVersion,
+          availableVersion: app.availableVersion,
+          updateStatus: app.updateStatus || 'not_checked',
+          updateCheckedAt: app.updateCheckedAt ? app.updateCheckedAt.toISOString() : null,
+          publisher: meta?.publisher || app.publisher,
+          source: app.source || 'winget',
+          matchStatus: app.matchStatus || 'matched',
+          // Release info fields directly on response data
+          version: releaseInfo.version,
+          officialSourceLink: releaseInfo.officialSourceLink,
+          releaseNotesLink: releaseInfo.releaseNotesLink,
+          releaseNotesSummary: releaseInfo.releaseNotesSummary,
+          fetchedAt: releaseInfo.fetchedAt,
+          metadataStatus: releaseInfo.status,
+          status: releaseInfo.status,
+          missingMessages: releaseInfo.missingMessages,
+          releaseInfo,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// GET /api/devices/:id/updates/pending & GET /api/devices/:id/updates - List pending updates with release info
+deviceDataRouter.get(
+  [
+    '/devices/:id/updates/pending',
+    '/v1/devices/:id/updates/pending',
+    '/devices/:id/updates',
+    '/v1/devices/:id/updates',
+    '/updates/pending',
+  ],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    let targetDeviceId = req.params.id ? String(req.params.id) : (req.query.deviceId ? String(req.query.deviceId) : null);
+    const user = req.user!;
+
+    try {
+      if (!targetDeviceId) {
+        const firstDevice = await prisma.device.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!firstDevice) {
+          res.status(200).json({ success: true, data: [] });
+          return;
+        }
+        targetDeviceId = firstDevice.id;
+      }
+
+      const device = await prisma.device.findUnique({ where: { id: targetDeviceId } });
+      if (!device || device.userId !== user.id) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+        });
+        return;
+      }
+
+      const appsWithUpdates = await prisma.application.findMany({
+        where: {
+          deviceId: device.id,
+          isInstalled: true,
+          updateStatus: 'update_available',
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      const pkgIds = appsWithUpdates
+        .map((a) => a.matchedPackageId || a.packageId)
+        .filter((id): id is string => Boolean(id));
+
+      let metadataList: PackageMetadata[] = [];
+      try {
+        if (pkgIds.length > 0 && prisma.packageMetadata) {
+          metadataList = await prisma.packageMetadata.findMany({
+            where: { packageId: { in: pkgIds } },
+          });
+        }
+      } catch {
+        metadataList = [];
+      }
+
+      const metaMap = new Map<string, PackageMetadata>();
+      for (const m of metadataList) {
+        metaMap.set(`${m.packageId.toLowerCase()}:${m.version.toLowerCase()}`, m);
+        if (!metaMap.has(m.packageId.toLowerCase())) {
+          metaMap.set(m.packageId.toLowerCase(), m);
+        }
+      }
+
+      const updates = appsWithUpdates.map((app) => {
+        const pkgId = app.matchedPackageId || app.packageId;
+        const targetVer = app.availableVersion;
+        const meta = (pkgId && targetVer)
+          ? metaMap.get(`${pkgId.toLowerCase()}:${targetVer.toLowerCase()}`) || metaMap.get(pkgId.toLowerCase())
+          : (pkgId ? metaMap.get(pkgId.toLowerCase()) : null);
+
+        const releaseInfo = buildReleaseInfo(app.availableVersion, meta);
+
+        return {
+          id: app.id,
+          deviceId: device.id,
+          deviceName: device.name,
+          name: app.name,
+          packageId: app.matchedPackageId || app.packageId || '',
+          currentVersion: app.installedVersion,
+          targetVersion: app.availableVersion || '',
+          source: app.source || 'winget',
+          status: 'PENDING_APPROVAL',
+          matchStatus: app.matchStatus || 'matched',
+          matchReason: app.matchReason || null,
+          detectedAt: app.updateCheckedAt ? app.updateCheckedAt.toISOString() : app.updatedAt.toISOString(),
+          publisher: meta?.publisher || app.publisher,
+          version: releaseInfo.version,
+          officialSourceLink: releaseInfo.officialSourceLink,
+          releaseNotesLink: releaseInfo.releaseNotesLink,
+          releaseNotesSummary: releaseInfo.releaseNotesSummary,
+          fetchedAt: releaseInfo.fetchedAt,
+          metadataStatus: releaseInfo.status,
+          statusText: releaseInfo.status,
+          missingMessages: releaseInfo.missingMessages,
+          releaseInfo,
+        };
+      });
+
+      res.status(200).json({ success: true, data: updates });
     } catch (error) {
       res.status(500).json({
         success: false,

@@ -5,6 +5,13 @@ import { determinePackagesNeedingFetch } from '../metadata/cache.js';
 
 export const scanRouter = Router();
 
+const lastRefreshByDevice = new Map<string, number>();
+const METADATA_REFRESH_COOLDOWN_MS = 10_000;
+
+export function resetMetadataRefreshRateLimits(): void {
+  lastRefreshByDevice.clear();
+}
+
 async function createDeviceJob(
   deviceId: string,
   userId: string,
@@ -264,6 +271,148 @@ scanRouter.post('/devices/:id/metadata-jobs', requireAuth, async (req: Request, 
         queued: true,
         job,
         packagesToFetch,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+});
+
+// POST /api/devices/:id/metadata-refresh - Manual refresh of package metadata (owner only, rate-limited, audited)
+scanRouter.post('/devices/:id/metadata-refresh', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const user = req.user!;
+
+  try {
+    // 1. Rate limiting check (cooldown per device)
+    const lastRefresh = lastRefreshByDevice.get(deviceId) || 0;
+    const now = Date.now();
+    if (now - lastRefresh < METADATA_REFRESH_COOLDOWN_MS) {
+      const retryAfterSec = Math.max(1, Math.ceil((METADATA_REFRESH_COOLDOWN_MS - (now - lastRefresh)) / 1000));
+      res.setHeader('Retry-After', String(retryAfterSec));
+      res.status(429).json({
+        success: false,
+        error: {
+          code: 'RATE_LIMITED',
+          message: `Metadata refresh is rate limited. Please wait ${retryAfterSec}s before refreshing again.`,
+        },
+      });
+      return;
+    }
+
+    // 2. Ownership & existence check
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    // 3. Concurrency check: one active metadata job per device
+    const activeJob = await prisma.scanJob.findFirst({
+      where: {
+        deviceId: device.id,
+        type: 'get_package_metadata',
+        status: { in: ['queued', 'running'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (activeJob) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'ACTIVE_JOB_EXISTS',
+          message: 'An active metadata job is already queued or running for this device.',
+          existingJobId: activeJob.id,
+          status: activeJob.status,
+        },
+      });
+      return;
+    }
+
+    // 4. Determine package IDs to refresh
+    const specificPkgId = req.body?.packageId ? String(req.body.packageId).trim() : null;
+
+    const apps = await prisma.application.findMany({
+      where: {
+        deviceId: device.id,
+        isInstalled: true,
+        updateStatus: 'update_available',
+      },
+    });
+
+    let packageIds = apps
+      .map((a) => a.matchedPackageId || a.packageId)
+      .filter((id): id is string => Boolean(id && /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$/.test(id)));
+
+    // De-duplicate package IDs
+    packageIds = Array.from(new Set(packageIds));
+
+    if (specificPkgId) {
+      packageIds = packageIds.filter((id) => id.toLowerCase() === specificPkgId.toLowerCase());
+    }
+
+    if (packageIds.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: {
+          queued: false,
+          message: 'No applications with available updates found to refresh',
+          packageIds: [],
+        },
+      });
+      return;
+    }
+
+    // Cap to 20 package IDs per execution
+    const cappedPackageIds = packageIds.slice(0, 20);
+
+    // Update rate limit timestamp
+    lastRefreshByDevice.set(deviceId, now);
+
+    // 5. Create queued ScanJob and write audit event in transaction
+    const [job] = await prisma.$transaction([
+      prisma.scanJob.create({
+        data: {
+          deviceId: device.id,
+          requestedByUserId: user.id,
+          type: 'get_package_metadata',
+          status: 'queued',
+          progressPercent: 0,
+          progressStep: 'queued',
+          progressMessage: `Queued metadata refresh for ${cappedPackageIds.length} package(s)`,
+          appCount: cappedPackageIds.length,
+          skippedSteps: cappedPackageIds,
+        },
+      }),
+      prisma.auditEvent.create({
+        data: {
+          userId: user.id,
+          deviceId: device.id,
+          eventType: 'METADATA_REFRESH_REQUESTED',
+          entityType: 'devices',
+          entityId: device.id,
+          metadata: {
+            packageCount: cappedPackageIds.length,
+            packageIds: cappedPackageIds,
+            trigger: 'MANUAL_REFRESH',
+          },
+        },
+      }),
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        queued: true,
+        job,
+        packageIds: cappedPackageIds,
       },
     });
   } catch (error) {
