@@ -13,6 +13,12 @@ describe('Software Updates & Approval Gate Screen', () => {
       targetVersion: '2.45.0',
       source: 'winget',
       status: 'PENDING_APPROVAL',
+      publisher: 'The Git Community',
+      officialSourceLink: 'https://git-scm.com/',
+      releaseNotesLink: 'https://github.com/git-for-windows/git/releases',
+      releaseNotesSummary: '* Upgraded to Git 2.45.0 with performance fixes',
+      fetchedAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+      metadataStatus: 'available',
     },
     {
       id: 'upd-2',
@@ -22,6 +28,15 @@ describe('Software Updates & Approval Gate Screen', () => {
       targetVersion: '1.89.0',
       source: 'winget',
       status: 'PENDING_APPROVAL',
+      publisher: 'Microsoft Corporation',
+      officialSourceLink: 'https://code.visualstudio.com/',
+      releaseNotesLink: null,
+      releaseNotesSummary: null,
+      fetchedAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+      metadataStatus: 'partial',
+      missingMessages: {
+        releaseNotes: 'Release notes not provided by the publisher',
+      },
     },
   ];
 
@@ -197,5 +212,66 @@ describe('Software Updates & Approval Gate Screen', () => {
     expect(screen.queryByText('Store App')).toBeNull();
     // Note explains why
     expect(screen.getByTestId('updates-excluded-note').textContent).toContain('2 applications excluded');
+  });
+
+  it('renders target version, publisher, official source link with hostname and rel="noopener noreferrer", and release notes', async () => {
+    render(<Updates />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-row-Git.Git')).toBeDefined();
+    });
+
+    // Publisher & target version
+    expect(screen.getByText('The Git Community')).toBeDefined();
+
+    // Official source link
+    const links = screen.getAllByTestId('official-source-link');
+    const gitLink = links[0] as HTMLAnchorElement;
+    expect(gitLink).toBeDefined();
+    expect(gitLink.href).toBe('https://git-scm.com/');
+    expect(gitLink.target).toBe('_blank');
+    expect(gitLink.rel).toBe('noopener noreferrer');
+    expect(gitLink.textContent).toContain('git-scm.com');
+
+    // Release notes text
+    expect(screen.getByText(/upgraded to git 2\.45\.0 with performance fixes/i)).toBeDefined();
+
+    // Relative timestamp message: "Information last updated 3 hours ago"
+    expect(screen.getByText('Information last updated 3 hours ago')).toBeDefined();
+
+    // Refresh button
+    const refreshBtns = screen.getAllByTestId('btn-refresh-metadata');
+    expect(refreshBtns.length).toBeGreaterThan(0);
+  });
+
+  it('shows "Release notes not provided by the publisher" in partial state when notes are missing', async () => {
+    render(<Updates />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-row-Microsoft.VisualStudioCode')).toBeDefined();
+    });
+
+    // VS Code row has official source link to code.visualstudio.com
+    expect(screen.getByText('code.visualstudio.com')).toBeDefined();
+
+    // Shows clear message for missing release notes
+    expect(screen.getByText('Release notes not provided by the publisher')).toBeDefined();
+  });
+
+  it('refresh button on update triggers refreshMetadata API call', async () => {
+    const refreshSpy = vi.spyOn(updatesApi, 'refreshMetadata').mockResolvedValue({ queued: true });
+
+    render(<Updates />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-row-Git.Git')).toBeDefined();
+    });
+
+    const refreshBtns = screen.getAllByTestId('btn-refresh-metadata');
+    fireEvent.click(refreshBtns[0]);
+
+    await waitFor(() => {
+      expect(refreshSpy).toHaveBeenCalled();
+    });
   });
 });

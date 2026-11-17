@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { triggerScanJob } from './scans';
+import type { ReleaseInfo } from './updates';
 
 export type MatchStatus = 'matched' | 'ambiguous' | 'unsupported' | 'pending';
 export type AppUpdateStatus = 'update_available' | 'up_to_date' | 'unknown' | 'not_checked';
@@ -32,6 +33,18 @@ export interface Application {
   matchConfidence?: number | null;
   matchMethod?: string | null;
   candidates?: MatchCandidate[];
+  // Release info
+  officialSourceLink?: string | null;
+  releaseNotesLink?: string | null;
+  releaseNotesSummary?: string | null;
+  fetchedAt?: string | null;
+  metadataStatus?: 'available' | 'partial' | 'missing' | 'stale';
+  missingMessages?: {
+    officialSourceLink?: string;
+    releaseNotes?: string;
+    general?: string;
+  };
+  releaseInfo?: ReleaseInfo | null;
 }
 
 export interface ApplicationsFilterParams {

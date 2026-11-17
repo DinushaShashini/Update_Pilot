@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { UpdateItem } from '../api/updates';
 import { fetchPendingUpdates, approveUpdate, rejectUpdate } from '../api/updates';
 import { CheckUpdatesController } from '../components/CheckUpdatesController';
+import { ReleaseInfoSection } from '../components/ReleaseInfoSection';
 import './Updates.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -200,60 +201,82 @@ export const Updates: React.FC = () => {
                 const isRejected = update.status === 'REJECTED';
 
                 return (
-                  <tr key={update.id} data-testid={`update-row-${update.packageId || update.id}`}>
-                    <td className="app-name-cell">{update.name}</td>
-                    <td className="app-package-id">{update.packageId}</td>
-                    <td>
-                      <div className="version-diff-container">
-                        <span className="version-old">{update.currentVersion}</span>
-                        <span className="version-arrow" aria-hidden="true">→</span>
-                        <span className="version-new">{update.targetVersion}</span>
-                      </div>
-                    </td>
-                    <td>{update.source || 'winget'}</td>
-                    <td>
-                      {isPending && (
-                        <span className="badge-update-avail" data-testid="status-pending">
-                          Pending Approval
-                        </span>
-                      )}
-                      {isApproved && (
-                        <span className="badge-managed" data-testid="status-approved">
-                          Approved
-                        </span>
-                      )}
-                      {isRejected && (
-                        <span className="badge-unsupported" data-testid="status-rejected">
-                          Rejected
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="update-actions-cell">
-                        <button
-                          type="button"
-                          className="btn-approve"
-                          onClick={() => {
-                            setSelectedForApproval(update);
-                            setApprovalError(null);
-                          }}
-                          disabled={!isPending}
-                          aria-label={`Approve update for ${update.name}`}
-                        >
-                          {isApproved ? 'Approved ✓' : 'Approve'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-reject"
-                          onClick={() => handleReject(update)}
-                          disabled={!isPending}
-                          aria-label={`Reject update for ${update.name}`}
-                        >
-                          {isRejected ? 'Rejected ✕' : 'Reject'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <React.Fragment key={update.id}>
+                    <tr data-testid={`update-row-${update.packageId || update.id}`}>
+                      <td className="app-name-cell">{update.name}</td>
+                      <td className="app-package-id">{update.packageId}</td>
+                      <td>
+                        <div className="version-diff-container">
+                          <span className="version-old">{update.currentVersion}</span>
+                          <span className="version-arrow" aria-hidden="true">→</span>
+                          <span className="version-new">{update.targetVersion}</span>
+                        </div>
+                      </td>
+                      <td>{update.source || 'winget'}</td>
+                      <td>
+                        {isPending && (
+                          <span className="badge-update-avail" data-testid="status-pending">
+                            Pending Approval
+                          </span>
+                        )}
+                        {isApproved && (
+                          <span className="badge-managed" data-testid="status-approved">
+                            Approved
+                          </span>
+                        )}
+                        {isRejected && (
+                          <span className="badge-unsupported" data-testid="status-rejected">
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="update-actions-cell">
+                          <button
+                            type="button"
+                            className="btn-approve"
+                            onClick={() => {
+                              setSelectedForApproval(update);
+                              setApprovalError(null);
+                            }}
+                            disabled={!isPending}
+                            aria-label={`Approve update for ${update.name}`}
+                          >
+                            {isApproved ? 'Approved ✓' : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-reject"
+                            onClick={() => handleReject(update)}
+                            disabled={!isPending}
+                            aria-label={`Reject update for ${update.name}`}
+                          >
+                            {isRejected ? 'Rejected ✕' : 'Reject'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr
+                      className="update-release-row"
+                      data-testid={`update-release-row-${update.packageId || update.id}`}
+                    >
+                      <td colSpan={6} style={{ padding: '0 16px 16px 16px', borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
+                        <ReleaseInfoSection
+                          targetVersion={update.targetVersion}
+                          publisher={update.publisher}
+                          officialSourceLink={update.officialSourceLink}
+                          releaseNotesLink={update.releaseNotesLink}
+                          releaseNotesSummary={update.releaseNotesSummary}
+                          fetchedAt={update.fetchedAt}
+                          metadataStatus={update.metadataStatus}
+                          missingMessages={update.missingMessages}
+                          deviceId={update.deviceId}
+                          packageId={update.packageId}
+                          onRefresh={loadUpdates}
+                        />
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -321,6 +344,20 @@ export const Updates: React.FC = () => {
                     {selectedForApproval.targetVersion}
                   </span>
                 </div>
+
+                <ReleaseInfoSection
+                  targetVersion={selectedForApproval.targetVersion}
+                  publisher={selectedForApproval.publisher}
+                  officialSourceLink={selectedForApproval.officialSourceLink}
+                  releaseNotesLink={selectedForApproval.releaseNotesLink}
+                  releaseNotesSummary={selectedForApproval.releaseNotesSummary}
+                  fetchedAt={selectedForApproval.fetchedAt}
+                  metadataStatus={selectedForApproval.metadataStatus}
+                  missingMessages={selectedForApproval.missingMessages}
+                  deviceId={selectedForApproval.deviceId}
+                  packageId={selectedForApproval.packageId}
+                  onRefresh={loadUpdates}
+                />
               </div>
 
               <div className="warning-checklist-box">

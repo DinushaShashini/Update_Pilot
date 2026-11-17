@@ -1,0 +1,206 @@
+.release-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: var(--surface-secondary, #f8fafc);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-main, #0f172a);
+}
+
+.release-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  padding-bottom: 8px;
+}
+
+.release-info-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.release-info-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-main, #0f172a);
+}
+
+.metadata-updated-badge {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  background-color: var(--badge-bg, #f1f5f9);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #cbd5e1);
+}
+
+.btn-refresh-metadata {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: transparent;
+  color: var(--primary, #2563eb);
+  border: 1px solid var(--primary, #2563eb);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-refresh-metadata:hover:not(:disabled) {
+  background-color: var(--primary-light, #eff6ff);
+}
+
+.btn-refresh-metadata:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-feedback-alert {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.refresh-feedback-alert.success {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.refresh-feedback-alert.error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.release-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.release-info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+}
+
+.field-value {
+  font-size: 13px;
+  color: var(--text-main, #0f172a);
+  word-break: break-word;
+}
+
+.field-value.mono {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+}
+
+.field-missing {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  font-style: italic;
+}
+
+.official-source-link,
+.notes-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary, #2563eb);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.official-source-link:hover,
+.notes-external-link:hover {
+  text-decoration: underline;
+}
+
+.external-icon {
+  font-size: 11px;
+}
+
+.release-notes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.release-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.release-notes-pre {
+  background-color: #ffffff;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-main, #1e293b);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.release-notes-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted, #64748b);
+  background-color: #ffffff;
+  border: 1px dashed var(--border-color, #cbd5e1);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.metadata-stale-banner {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.spinner-xs {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--primary, #2563eb);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

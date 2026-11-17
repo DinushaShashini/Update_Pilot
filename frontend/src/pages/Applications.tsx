@@ -3,6 +3,7 @@ import type { Application, ApplicationsFilterParams, MatchStatus, AppUpdateStatu
 import { fetchApplications } from '../api/applications';
 import { ScanNowController } from '../components/ScanNowController';
 import { CheckUpdatesController } from '../components/CheckUpdatesController';
+import { ReleaseInfoSection } from '../components/ReleaseInfoSection';
 import './Applications.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -710,6 +711,28 @@ export const Applications: React.FC = () => {
                   </div>
                 );
               })()}
+
+              {(selectedApp.availableVersion ||
+                selectedApp.updateStatus === 'update_available' ||
+                selectedApp.officialSourceLink ||
+                selectedApp.releaseNotesSummary ||
+                selectedApp.releaseInfo) && (
+                <div style={{ marginTop: '16px' }}>
+                  <ReleaseInfoSection
+                    targetVersion={selectedApp.availableVersion}
+                    publisher={selectedApp.publisher}
+                    officialSourceLink={selectedApp.officialSourceLink}
+                    releaseNotesLink={selectedApp.releaseNotesLink}
+                    releaseNotesSummary={selectedApp.releaseNotesSummary}
+                    fetchedAt={selectedApp.fetchedAt}
+                    metadataStatus={selectedApp.metadataStatus}
+                    missingMessages={selectedApp.missingMessages}
+                    deviceId={selectedApp.deviceId}
+                    packageId={selectedApp.packageId || selectedApp.matchedPackageId || undefined}
+                    onRefresh={loadData}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

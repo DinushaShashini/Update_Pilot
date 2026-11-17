@@ -13,6 +13,12 @@ describe('Applications Inventory Screen', () => {
       availableVersion: '2.45.0',
       source: 'winget',
       isManaged: true,
+      publisher: 'The Git Community',
+      officialSourceLink: 'https://git-scm.com/',
+      releaseNotesLink: 'https://github.com/git-for-windows/git/releases',
+      releaseNotesSummary: '* Fast and secure Git 2.45.0 release',
+      fetchedAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+      metadataStatus: 'available',
     },
     {
       id: 'app-2',
@@ -383,5 +389,29 @@ describe('Applications Inventory Screen', () => {
 
     // 6. Check for updates button
     expect(screen.getByTestId('check-updates-btn')).toBeDefined();
+  });
+
+  it('shows release information and official source link in Application Details slide-over panel', async () => {
+    render(<Applications />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('app-row-Git.Git')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByTestId('app-row-Git.Git'));
+
+    expect(screen.getByTestId('app-details-overlay')).toBeDefined();
+    expect(screen.getByTestId('release-info-section')).toBeDefined();
+    expect(screen.getByTestId('target-version-value').textContent).toBe('2.45.0');
+    expect(screen.getByTestId('publisher-value').textContent).toBe('The Git Community');
+
+    const sourceLink = screen.getByTestId('official-source-link') as HTMLAnchorElement;
+    expect(sourceLink.href).toBe('https://git-scm.com/');
+    expect(sourceLink.rel).toBe('noopener noreferrer');
+    expect(sourceLink.target).toBe('_blank');
+    expect(sourceLink.textContent).toContain('git-scm.com');
+
+    expect(screen.getByTestId('release-notes-text').textContent).toContain('* Fast and secure Git 2.45.0 release');
+    expect(screen.getByTestId('btn-refresh-metadata')).toBeDefined();
   });
 });

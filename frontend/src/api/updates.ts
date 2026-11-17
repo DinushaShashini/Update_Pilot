@@ -9,6 +9,25 @@ export type UpdateStatus =
   | 'SUCCEEDED'
   | 'FAILED';
 
+export type MetadataStatus = 'available' | 'partial' | 'missing' | 'stale';
+
+export interface ReleaseInfo {
+  version: string | null;
+  officialSourceLink: string | null;
+  releaseNotesLink: string | null;
+  releaseNotesSummary: string | null;
+  publisher?: string | null;
+  fetchedAt?: string | null;
+  expiresAt?: string | null;
+  status?: MetadataStatus;
+  metadataStatus?: MetadataStatus;
+  missingMessages?: {
+    officialSourceLink?: string;
+    releaseNotes?: string;
+    general?: string;
+  };
+}
+
 export interface UpdateItem {
   id: string;
   deviceId?: string;
@@ -19,11 +38,25 @@ export interface UpdateItem {
   targetVersion: string;
   source?: string;
   status: UpdateStatus;
+  publisher?: string | null;
   matchStatus?: 'matched' | 'ambiguous' | 'unsupported' | 'pending';
   matchReason?: string | null;
   detectedAt?: string;
   approvedAt?: string;
   rejectedAt?: string;
+  // Release info
+  officialSourceLink?: string | null;
+  releaseNotesLink?: string | null;
+  releaseNotesSummary?: string | null;
+  fetchedAt?: string | null;
+  metadataStatus?: MetadataStatus;
+  statusText?: string;
+  missingMessages?: {
+    officialSourceLink?: string;
+    releaseNotes?: string;
+    general?: string;
+  };
+  releaseInfo?: ReleaseInfo | null;
 }
 
 interface ApiResponseEnvelope<T> {
@@ -157,6 +190,36 @@ export async function fetchLatestUpdateCheckJob(deviceId: string): Promise<ScanJ
     return res.data?.job || null;
   } catch {
     return null;
+  }
+}
+
+export async function refreshMetadata(
+  deviceId?: string,
+  packageId?: string
+): Promise<{ queued: boolean; message?: string; packageIds?: string[] }> {
+  const endpoint = deviceId
+    ? `/api/devices/${deviceId}/metadata-refresh`
+    : '/api/devices/default/metadata-refresh';
+  const body = packageId ? { packageId } : {};
+
+  try {
+    const res = await apiClient.post<
+      ApiResponseEnvelope<{ queued: boolean; message?: string; packageIds?: string[] }> | { queued: boolean; message?: string; packageIds?: string[] }
+    >(endpoint, body);
+
+    if (res && typeof res === 'object' && 'data' in res && res.data) {
+      return res.data;
+    }
+    return res as { queued: boolean; message?: string; packageIds?: string[] };
+  } catch (err: unknown) {
+    if (typeof err === 'object' && err !== null && 'status' in err && (err as { status: number }).status === 404 && deviceId) {
+      const res = await apiClient.post<ApiResponseEnvelope<{ queued: boolean; message?: string; packageIds?: string[] }>>(
+        `/api/v1/devices/${deviceId}/metadata-refresh`,
+        body
+      );
+      return res.data || { queued: false };
+    }
+    throw err;
   }
 }
 
