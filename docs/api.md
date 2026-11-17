@@ -325,8 +325,8 @@ Reruns conservative package matching across all installed applications for a dev
 
 ---
 
-### 5.2 Application Details Panel
-- **Method & Path**: `GET /api/v1/devices/:id/applications/:appId`
+### 5.2 Application & Update Details Panel
+- **Method & Path**: `GET /api/devices/:id/updates/:updateId` (aliases: `GET /api/v1/devices/:id/updates/:updateId`, `GET /api/devices/:id/applications/:appId`)
 - **Auth**: `Bearer <JWT>`
 - **Success Response (200 OK)**:
 ```json
@@ -334,23 +334,68 @@ Reruns conservative package matching across all installed applications for a dev
   "success": true,
   "data": {
     "id": "33333333-3333-3333-3333-333333333333",
-    "package_id": "Git.Git",
+    "deviceId": "22222222-2222-2222-2222-222222222222",
+    "packageId": "Git.Git",
     "name": "Git for Windows",
-    "installed_version": "2.50.0.2",
-    "available_version": "2.56.0.3",
+    "installedVersion": "2.50.0.2",
+    "availableVersion": "2.56.0.3",
+    "targetVersion": "2.56.0.3",
     "source": "winget",
-    "is_managed": true,
-    "status": "UPDATE_AVAILABLE",
+    "updateStatus": "update_available",
     "publisher": "The Git Development Community",
-    "architecture": "x64",
-    "install_scope": "Machine",
-    "manifest_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/g/Git/Git",
-    "pending_preview_id": "44444444-4444-4444-4444-444444444444",
-    "last_scanned_at": "2026-10-30T14:15:00Z"
+    "version": "2.56.0.3",
+    "officialSourceLink": "https://git-scm.com/",
+    "releaseNotesLink": "https://github.com/git-for-windows/git/releases/tag/v2.56.0.windows.1",
+    "releaseNotesSummary": "* Security updates for CVE-2026-0001\n* Performance enhancements",
+    "fetchedAt": "2026-11-17T11:00:00.000Z",
+    "metadataStatus": "available",
+    "status": "available",
+    "missingMessages": {},
+    "releaseInfo": {
+      "version": "2.56.0.3",
+      "officialSourceLink": "https://git-scm.com/",
+      "releaseNotesLink": "https://github.com/git-for-windows/git/releases/tag/v2.56.0.windows.1",
+      "releaseNotesSummary": "* Security updates for CVE-2026-0001\n* Performance enhancements",
+      "publisher": "The Git Development Community",
+      "fetchedAt": "2026-11-17T11:00:00.000Z",
+      "status": "available",
+      "metadataStatus": "available",
+      "missingMessages": {}
+    }
   }
 }
 ```
-- **Error Codes**: `401 Unauthorized`, `403 Forbidden`, `404 Not Found`.
+- **Error Codes**: `401 Unauthorized`, `404 Not Found` (`DEVICE_NOT_FOUND`, `APPLICATION_NOT_FOUND`, `UPDATE_NOT_FOUND`).
+
+---
+
+### 5.3 Trigger Metadata Refresh
+Initiates an on-demand refresh of cached package release metadata. Owner-only, audited (`METADATA_REFRESH_REQUESTED`), and rate limited (max 1 refresh per 10 seconds per device).
+- **Method & Path**: `POST /api/devices/:id/metadata-refresh` (alias: `POST /api/v1/devices/:id/metadata-refresh`)
+- **Auth**: `Bearer <JWT>`
+- **Request Body** *(optional)*:
+```json
+{
+  "packageId": "Git.Git"
+}
+```
+- **Success Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "queued": true,
+    "job": {
+      "id": "job-9999",
+      "type": "get_package_metadata",
+      "status": "queued",
+      "appCount": 1
+    },
+    "packageIds": ["Git.Git"]
+  }
+}
+```
+- **Error Codes**: `401 Unauthorized`, `404 Not Found` (`DEVICE_NOT_FOUND`), `409 Conflict` (`ACTIVE_JOB_EXISTS`), `429 Too Many Requests` (`RATE_LIMITED` with `Retry-After` header).
 
 ---
 
