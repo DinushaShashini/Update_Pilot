@@ -27,6 +27,7 @@ from agent.scanner import run_scan
 from agent.scanner.scan import scan_inventory
 from agent.storage import delete_agent_token, get_agent_token, save_agent_token
 from agent.updates import check_updates
+from agent.metadata import get_package_metadata
 
 logger = logging.getLogger("agent")
 
@@ -254,6 +255,41 @@ def execute_check_updates(
     return 0 if not res.errors else 1
 
 
+def execute_get_metadata(
+    package_ids: List[str],
+    output_json: bool = False,
+    output_file: Optional[Path] = None,
+) -> int:
+    """Collect release information and source metadata for requested package IDs via `winget show`.
+
+    Works locally without requiring agent pairing.
+    """
+    res = get_package_metadata(package_ids=package_ids)
+    res_dict = res.to_dict()
+
+    if output_file:
+        try:
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_file, "w", encoding="utf-8") as f:
+                json.dump(res_dict, f, indent=2)
+            sys.stdout.write(
+                f"Package metadata results saved to {output_file} ({len(res.packages)} packages).\n"
+            )
+        except OSError as err:
+            sys.stderr.write(f"Failed to write output file: {err}\n")
+            return 1
+
+    if output_json:
+        sys.stdout.write(json.dumps(res_dict, indent=2) + "\n")
+    elif not output_file:
+        sys.stdout.write(
+            f"Package metadata collected for {len(res.packages)} package(s) "
+            f"(Warnings: {len(res.warnings)}, Errors: {len(res.errors)}).\n"
+        )
+
+    return 0 if not res.errors else 1
+
+
 def execute_upgrade_cli(
     package_id: Optional[str] = None,
     server_url: Optional[str] = None,
@@ -404,6 +440,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write update check JSON results to a file",
     )
 
+    # metadata command
+    metadata_parser = subparsers.add_parser(
+        "metadata",
+        help="Collect release information and source metadata for package IDs (read-only)",
+    )
+    metadata_parser.add_argument(
+        "--id",
+        dest="package_ids",
+        action="append",
+        required=True,
+        help="Package ID to inspect (can specify multiple times, max 20)",
+    )
+    metadata_parser.add_argument(
+        "--json",
+        dest="output_json",
+        action="store_true",
+        help="Print metadata results as JSON",
+    )
+    metadata_parser.add_argument(
+        "--output",
+        dest="output_file",
+        type=Path,
+        default=None,
+        help="Write metadata JSON results to a file",
+    )
+
     return parser
 
 
@@ -447,6 +509,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             package_id=args.package_id,
             server_url=args.server,
             config_path=getattr(args, "config_path", None),
+        )
+    elif args.command == "metadata":
+        return execute_get_metadata(
+            package_ids=args.package_ids,
+            output_json=getattr(args, "output_json", False),
+            output_file=getattr(args, "output_file", None),
         )
     else:
         parser.print_help(sys.stderr)

@@ -13,6 +13,7 @@ from requests.exceptions import RequestException
 
 from agent.config import is_operation_allowed
 from agent.heartbeat import handle_revocation
+from agent.metadata import get_package_metadata
 from agent.pairing import validate_server_url
 from agent.scanner.payload import convert_scan_result_to_api_payload
 from agent.scanner.scan import scan_inventory
@@ -291,6 +292,76 @@ def submit_scan_results(
     return False, False
 
 
+def submit_metadata_results(
+    server_url: str,
+    token: str,
+    job_id: str,
+    payload: Dict[str, Any],
+    max_retries: int = 3,
+    base_backoff: float = 1.0,
+    timeout_seconds: int = 20,
+    sleeper: Optional[Callable[[float], None]] = None,
+) -> Tuple[bool, bool]:
+    """Submit package metadata results with exponential backoff retry on network failures.
+
+    Returns:
+        (success: bool, is_revoked: bool)
+    """
+    url = build_agent_endpoint(server_url, f"agent/metadata/{job_id}/results")
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    sleep_fn = sleeper or time.sleep
+
+    for attempt in range(max_retries + 1):
+        try:
+            resp = requests.post(
+                url,
+                json=payload,
+                headers=headers,
+                timeout=timeout_seconds,
+                proxies=_get_proxies(url),
+            )
+
+            if resp.status_code == 401:
+                return False, True
+
+            if resp.status_code in (200, 201):
+                return True, False
+
+            if 400 <= resp.status_code < 500:
+                logger.error(
+                    "Metadata submission rejected with HTTP %d for job %s",
+                    resp.status_code,
+                    job_id,
+                )
+                return False, False
+
+        except RequestException as exc:
+            if attempt < max_retries:
+                delay = base_backoff * (2 ** attempt) + random.uniform(0.1, 0.5)
+                logger.warning(
+                    "Network error submitting metadata (attempt %d/%d): %s. Retrying in %.1fs...",
+                    attempt + 1,
+                    max_retries + 1,
+                    type(exc).__name__,
+                    delay,
+                )
+                sleep_fn(delay)
+                continue
+            else:
+                logger.error(
+                    "Failed to submit metadata for job %s after %d retries due to network problems.",
+                    job_id,
+                    max_retries + 1,
+                )
+                return False, False
+
+    return False, False
+
+
 def submit_scan_failure(
     server_url: str,
     token: str,
@@ -473,6 +544,42 @@ def execute_single_job(
                 logger.info("Job %s results accepted: status -> succeeded", job_id)
             else:
                 logger.warning("Job %s results submission failed or halted", job_id)
+
+        elif job_type == "get_package_metadata":
+            start_time = time.perf_counter()
+            package_ids = (
+                job.get("package_ids")
+                or job.get("payload", {}).get("package_ids")
+                or job.get("parameters", {}).get("package_ids")
+                or []
+            )
+            meta_res = get_package_metadata(package_ids=package_ids)
+            payload = meta_res.to_dict()
+            elapsed = time.perf_counter() - start_time
+            logger.info(
+                "Job %s metadata collected in %.2fs (%d packages). Submitting results...",
+                job_id,
+                elapsed,
+                len(meta_res.packages),
+            )
+
+            success, revoked = submit_metadata_results(
+                server_url=server_url,
+                token=token,
+                job_id=job_id,
+                payload=payload,
+                max_retries=3,
+                sleeper=sleeper,
+            )
+
+            if revoked:
+                handle_revocation(config_path=config_path)
+                return False
+
+            if success:
+                logger.info("Job %s metadata results accepted: status -> succeeded", job_id)
+            else:
+                logger.warning("Job %s metadata results submission failed or halted", job_id)
 
         return True
 

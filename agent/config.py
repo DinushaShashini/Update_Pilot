@@ -13,7 +13,7 @@ CONFIG_DIR_ENV = "UPDATEPILOT_CONFIG_DIR"
 CONFIG_FILE_NAME = "config.json"
 
 # Strict allow-list of agent-supported operations
-ALLOWED_OPERATIONS = frozenset({"scan_inventory", "check_updates", "apply_update"})
+ALLOWED_OPERATIONS = frozenset({"scan_inventory", "check_updates", "apply_update", "get_package_metadata"})
 
 
 def is_operation_allowed(operation: str) -> bool:

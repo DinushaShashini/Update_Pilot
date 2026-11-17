@@ -100,3 +100,54 @@ class CheckUpdatesResult:
             "warnings": list(self.warnings),
             "errors": list(self.errors),
         }
+
+
+@dataclass
+class PackageMetadata:
+    """Represents release information and source metadata for a package."""
+
+    package_id: str
+    version: Optional[str] = None
+    publisher: Optional[str] = None
+    homepage_url: Optional[str] = None
+    publisher_url: Optional[str] = None
+    release_notes_url: Optional[str] = None
+    release_notes_text: Optional[str] = None
+    installer_type: Optional[str] = None
+    fetch_status: str = "success"  # "success" | "not_found" | "timeout" | "error"
+    error: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert PackageMetadata to serializable dictionary."""
+        return {
+            "package_id": self.package_id,
+            "version": self.version,
+            "publisher": self.publisher,
+            "homepage_url": self.homepage_url,
+            "publisher_url": self.publisher_url,
+            "release_notes_url": self.release_notes_url,
+            "release_notes_text": self.release_notes_text,
+            "installer_type": self.installer_type,
+            "fetch_status": self.fetch_status,
+            "error": self.error,
+        }
+
+
+@dataclass
+class GetPackageMetadataResult:
+    """Represents the aggregate outcome of a `get_package_metadata` operation."""
+
+    packages: List[PackageMetadata] = field(default_factory=list)
+    fetched_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    warnings: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert GetPackageMetadataResult to serializable dictionary."""
+        return {
+            "packages": [p.to_dict() for p in self.packages],
+            "fetched_at": self.fetched_at,
+            "warnings": list(self.warnings),
+            "errors": list(self.errors),
+        }
+
