@@ -15,6 +15,7 @@ deviceDataRouter.get(
     const user = req.user!;
     const includeRemoved = req.query.includeRemoved === 'true' || req.query.includeRemoved === '1';
     const matchStatusFilter = req.query.matchStatus ? String(req.query.matchStatus).toLowerCase() : undefined;
+    const updateStatusFilter = req.query.updateStatus ? String(req.query.updateStatus).toLowerCase() : undefined;
 
     try {
       const device = await prisma.device.findUnique({
@@ -29,7 +30,12 @@ deviceDataRouter.get(
         return;
       }
 
-      const whereClause: { deviceId: string; isInstalled?: boolean; matchStatus?: string } = {
+      const whereClause: {
+        deviceId: string;
+        isInstalled?: boolean;
+        matchStatus?: string;
+        updateStatus?: string;
+      } = {
         deviceId: device.id,
       };
 
@@ -39,6 +45,10 @@ deviceDataRouter.get(
 
       if (matchStatusFilter) {
         whereClause.matchStatus = matchStatusFilter;
+      }
+
+      if (updateStatusFilter) {
+        whereClause.updateStatus = updateStatusFilter;
       }
 
       const applications = await prisma.application.findMany({
@@ -175,6 +185,12 @@ deviceDataRouter.get(
               totalApps: 0,
               managedApps: 0,
               unsupportedApps: 0,
+              updatesAvailableCount: 0,
+              upToDateCount: 0,
+              unknownUpdateCount: 0,
+              updatesAvailable: 0,
+              upToDate: 0,
+              unknownUpdates: 0,
               pendingUpdatesCount: 0,
               lastScanStatus: 'NEVER',
               lastScanAt: null,
@@ -185,6 +201,9 @@ deviceDataRouter.get(
                 total_apps_count: 0,
                 managed_apps_count: 0,
                 unsupported_apps_count: 0,
+                updates_available_count: 0,
+                up_to_date_count: 0,
+                unknown_update_count: 0,
                 pending_updates_count: 0,
                 last_scan_status: 'NEVER',
                 last_scan_at: null,
@@ -263,6 +282,19 @@ deviceDataRouter.get(
         where: { deviceId: device.id, isInstalled: true, matchStatus: 'unsupported' },
       });
 
+      // Update status counts
+      const updatesAvailableCount = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, updateStatus: 'update_available' },
+      });
+
+      const upToDateCount = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, updateStatus: 'up_to_date' },
+      });
+
+      const unknownUpdateCount = await prisma.application.count({
+        where: { deviceId: device.id, isInstalled: true, updateStatus: 'unknown' },
+      });
+
       const data = {
         totalApps,
         managedApps,
@@ -272,6 +304,12 @@ deviceDataRouter.get(
         matchedCount: matchedApps,
         ambiguousCount: ambiguousApps,
         unsupportedCount: unsupportedAppsCount,
+        updatesAvailableCount,
+        upToDateCount,
+        unknownUpdateCount,
+        updatesAvailable: updatesAvailableCount,
+        upToDate: upToDateCount,
+        unknownUpdates: unknownUpdateCount,
         pendingUpdatesCount,
         lastScanStatus,
         lastScanAt,
@@ -293,6 +331,9 @@ deviceDataRouter.get(
           matched_count: matchedApps,
           ambiguous_count: ambiguousApps,
           unsupported_count: unsupportedAppsCount > 0 ? unsupportedAppsCount : unsupportedApps,
+          updates_available_count: updatesAvailableCount,
+          up_to_date_count: upToDateCount,
+          unknown_update_count: unknownUpdateCount,
           pending_updates_count: pendingUpdatesCount,
           last_scan_status: lastScanStatus,
           last_scan_at: lastScanAt,

@@ -98,6 +98,43 @@ scanRouter.post('/devices/:id/update-checks', requireAuth, async (req: Request, 
   await createDeviceJob(String(req.params.id), req.user!.id, 'check_updates', 'UPDATE_CHECK_QUEUED', res);
 });
 
+// GET /api/devices/:id/update-checks/latest - Retrieve the latest update-check job for a device
+scanRouter.get('/devices/:id/update-checks/latest', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const user = req.user!;
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    const latestJob = await prisma.scanJob.findFirst({
+      where: { deviceId: device.id, type: 'check_updates' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latestJob) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NO_JOBS_FOUND', message: 'No update-check jobs found for this device' },
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: { job: latestJob } });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+});
+
 // GET /api/devices/:id/update-checks/:jobId - Retrieve specific update-check job details
 scanRouter.get('/devices/:id/update-checks/:jobId', requireAuth, async (req: Request, res: Response): Promise<void> => {
   const deviceId = String(req.params.id);

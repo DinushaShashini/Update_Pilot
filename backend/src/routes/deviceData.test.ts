@@ -188,6 +188,185 @@ describe('Applications, Dashboard Overview & History API (/api/devices/:id)', ()
     }
   });
 
+  it('GET /api/devices/:id/applications returns updateStatus, availableVersion, updateCheckedAt and filters by updateStatus', async () => {
+    const originalDeviceFindUnique = prisma.device.findUnique;
+    const originalAppFindMany = prisma.application.findMany;
+
+    prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+
+    const mockApps = [
+      {
+        id: 'app-upd-avail',
+        deviceId: deviceA.id,
+        name: 'Git',
+        installedVersion: '2.50.0',
+        publisher: 'Git Authors',
+        packageId: 'Git.Git',
+        source: 'winget',
+        isInstalled: true,
+        isManaged: true,
+        updateStatus: 'update_available',
+        availableVersion: '2.56.0',
+        updateCheckedAt: new Date('2026-11-12T10:00:00Z'),
+        matchStatus: 'matched',
+        matchReason: 'EXACT_WINGET_ID',
+        matchedPackageId: 'Git.Git',
+        matchConfidence: 1.0,
+        matchMethod: 'exact',
+        candidates: [],
+        lastScannedAt: new Date('2026-11-12T10:00:00Z'),
+        createdAt: new Date('2026-11-01T10:00:00Z'),
+        updatedAt: new Date('2026-11-12T10:00:00Z'),
+      },
+      {
+        id: 'app-upd-same',
+        deviceId: deviceA.id,
+        name: '7-Zip',
+        installedVersion: '23.01',
+        publisher: 'Igor Pavlov',
+        packageId: '7zip.7zip',
+        source: 'winget',
+        isInstalled: true,
+        isManaged: true,
+        updateStatus: 'up_to_date',
+        availableVersion: null,
+        updateCheckedAt: new Date('2026-11-12T10:00:00Z'),
+        matchStatus: 'matched',
+        matchReason: 'EXACT_WINGET_ID',
+        matchedPackageId: '7zip.7zip',
+        matchConfidence: 1.0,
+        matchMethod: 'exact',
+        candidates: [],
+        lastScannedAt: new Date('2026-11-12T10:00:00Z'),
+        createdAt: new Date('2026-11-01T10:00:00Z'),
+        updatedAt: new Date('2026-11-12T10:00:00Z'),
+      },
+      {
+        id: 'app-upd-unk',
+        deviceId: deviceA.id,
+        name: 'Custom Utility',
+        installedVersion: 'unknown',
+        publisher: 'Internal Corp',
+        packageId: 'Corp.Util',
+        source: 'winget',
+        isInstalled: true,
+        isManaged: true,
+        updateStatus: 'unknown',
+        availableVersion: null,
+        updateCheckedAt: new Date('2026-11-12T10:00:00Z'),
+        matchStatus: 'matched',
+        matchReason: 'EXACT_WINGET_ID',
+        matchedPackageId: 'Corp.Util',
+        matchConfidence: 1.0,
+        matchMethod: 'exact',
+        candidates: [],
+        lastScannedAt: new Date('2026-11-12T10:00:00Z'),
+        createdAt: new Date('2026-11-01T10:00:00Z'),
+        updatedAt: new Date('2026-11-12T10:00:00Z'),
+      },
+      {
+        id: 'app-not-checked',
+        deviceId: deviceA.id,
+        name: 'Legacy Driver',
+        installedVersion: '1.0.0',
+        publisher: 'OEM',
+        packageId: null,
+        source: 'registry',
+        isInstalled: true,
+        isManaged: false,
+        updateStatus: 'not_checked',
+        availableVersion: null,
+        updateCheckedAt: null,
+        matchStatus: 'unsupported',
+        matchReason: 'REGISTRY_ONLY',
+        matchedPackageId: null,
+        matchConfidence: null,
+        matchMethod: 'none',
+        candidates: [],
+        lastScannedAt: new Date('2026-11-12T10:00:00Z'),
+        createdAt: new Date('2026-11-01T10:00:00Z'),
+        updatedAt: new Date('2026-11-12T10:00:00Z'),
+      },
+    ];
+
+    prisma.application.findMany = (async (args: { where: { updateStatus?: string } }) => {
+      if (args.where.updateStatus) {
+        return mockApps.filter((a) => a.updateStatus === args.where.updateStatus);
+      }
+      return mockApps;
+    }) as unknown as typeof prisma.application.findMany;
+
+    try {
+      // 1. Fetch all applications
+      const resAll = await fetch(`${baseUrl}/api/devices/${deviceA.id}/applications`, {
+        headers: { Authorization: `Bearer ${ownerJwt}` },
+      });
+      assert.strictEqual(resAll.status, 200);
+      const bodyAll = (await resAll.json()) as {
+        success: boolean;
+        data: {
+          total: number;
+          applications: Array<{
+            id: string;
+            updateStatus: string;
+            availableVersion: string | null;
+            updateCheckedAt: string | null;
+          }>;
+        };
+      };
+      assert.strictEqual(bodyAll.data.total, 4);
+
+      const gitApp = bodyAll.data.applications.find((a) => a.id === 'app-upd-avail')!;
+      assert.strictEqual(gitApp.updateStatus, 'update_available');
+      assert.strictEqual(gitApp.availableVersion, '2.56.0');
+      assert.strictEqual(gitApp.updateCheckedAt, '2026-11-12T10:00:00.000Z');
+
+      const zipApp = bodyAll.data.applications.find((a) => a.id === 'app-upd-same')!;
+      assert.strictEqual(zipApp.updateStatus, 'up_to_date');
+      assert.strictEqual(zipApp.availableVersion, null);
+      assert.strictEqual(zipApp.updateCheckedAt, '2026-11-12T10:00:00.000Z');
+
+      const unkApp = bodyAll.data.applications.find((a) => a.id === 'app-upd-unk')!;
+      assert.strictEqual(unkApp.updateStatus, 'unknown');
+      assert.strictEqual(unkApp.availableVersion, null);
+
+      const notChkApp = bodyAll.data.applications.find((a) => a.id === 'app-not-checked')!;
+      assert.strictEqual(notChkApp.updateStatus, 'not_checked');
+      assert.strictEqual(notChkApp.availableVersion, null);
+      assert.strictEqual(notChkApp.updateCheckedAt, null);
+
+      // 2. Filter by updateStatus=update_available
+      const resAvail = await fetch(`${baseUrl}/api/devices/${deviceA.id}/applications?updateStatus=update_available`, {
+        headers: { Authorization: `Bearer ${ownerJwt}` },
+      });
+      assert.strictEqual(resAvail.status, 200);
+      const bodyAvail = (await resAvail.json()) as { data: { applications: Array<{ id: string }> } };
+      assert.strictEqual(bodyAvail.data.applications.length, 1);
+      assert.strictEqual(bodyAvail.data.applications[0].id, 'app-upd-avail');
+
+      // 3. Filter by updateStatus=up_to_date
+      const resSame = await fetch(`${baseUrl}/api/devices/${deviceA.id}/applications?updateStatus=up_to_date`, {
+        headers: { Authorization: `Bearer ${ownerJwt}` },
+      });
+      assert.strictEqual(resSame.status, 200);
+      const bodySame = (await resSame.json()) as { data: { applications: Array<{ id: string }> } };
+      assert.strictEqual(bodySame.data.applications.length, 1);
+      assert.strictEqual(bodySame.data.applications[0].id, 'app-upd-same');
+
+      // 4. Filter by updateStatus=unknown
+      const resUnk = await fetch(`${baseUrl}/api/devices/${deviceA.id}/applications?updateStatus=unknown`, {
+        headers: { Authorization: `Bearer ${ownerJwt}` },
+      });
+      assert.strictEqual(resUnk.status, 200);
+      const bodyUnk = (await resUnk.json()) as { data: { applications: Array<{ id: string }> } };
+      assert.strictEqual(bodyUnk.data.applications.length, 1);
+      assert.strictEqual(bodyUnk.data.applications[0].id, 'app-upd-unk');
+    } finally {
+      prisma.device.findUnique = originalDeviceFindUnique;
+      prisma.application.findMany = originalAppFindMany;
+    }
+  });
+
   it('GET /api/devices/:id/overview returns real scan metrics and status', async () => {
     const originalDeviceFindUnique = prisma.device.findUnique;
     const originalAppCount = prisma.application.count;
@@ -195,9 +374,12 @@ describe('Applications, Dashboard Overview & History API (/api/devices/:id)', ()
 
     prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
 
-    prisma.application.count = (async (args: { where: { isManaged?: boolean; availableVersion?: unknown } }) => {
+    prisma.application.count = (async (args: { where: { isManaged?: boolean; availableVersion?: unknown; updateStatus?: string } }) => {
+      if (args.where.updateStatus === 'update_available') return 3;
+      if (args.where.updateStatus === 'up_to_date') return 5;
+      if (args.where.updateStatus === 'unknown') return 2;
       if (args.where.isManaged === true) return 8;
-      if (args.where.availableVersion) return 2;
+      if (args.where.availableVersion) return 3;
       return 10; // Total installed apps
     }) as unknown as typeof prisma.application.count;
 
@@ -220,8 +402,16 @@ describe('Applications, Dashboard Overview & History API (/api/devices/:id)', ()
           totalApps: number;
           managedApps: number;
           unsupportedApps: number;
+          updatesAvailableCount: number;
+          upToDateCount: number;
+          unknownUpdateCount: number;
           lastScanStatus: string;
           lastScanAt: string;
+          metrics: {
+            updates_available_count: number;
+            up_to_date_count: number;
+            unknown_update_count: number;
+          };
         };
       };
 
@@ -229,6 +419,12 @@ describe('Applications, Dashboard Overview & History API (/api/devices/:id)', ()
       assert.strictEqual(body.data.totalApps, 10);
       assert.strictEqual(body.data.managedApps, 8);
       assert.strictEqual(body.data.unsupportedApps, 2);
+      assert.strictEqual(body.data.updatesAvailableCount, 3);
+      assert.strictEqual(body.data.upToDateCount, 5);
+      assert.strictEqual(body.data.unknownUpdateCount, 2);
+      assert.strictEqual(body.data.metrics.updates_available_count, 3);
+      assert.strictEqual(body.data.metrics.up_to_date_count, 5);
+      assert.strictEqual(body.data.metrics.unknown_update_count, 2);
       assert.strictEqual(body.data.lastScanStatus, 'succeeded');
       assert.strictEqual(body.data.lastScanAt, '2026-11-11T12:05:00.000Z');
     } finally {

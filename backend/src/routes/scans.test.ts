@@ -224,4 +224,55 @@ describe('Scan Jobs API (/api/devices/:id/scans)', () => {
       prisma.scanJob.findFirst = originalFindFirst;
     }
   });
+
+  it('GET /api/devices/:id/update-checks/latest returns latest update-check job for owner and 404 when none exist or non-owner', async () => {
+    const originalFindUnique = prisma.device.findUnique;
+    const originalFindFirst = prisma.scanJob.findFirst;
+
+    prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+
+    let mockJob: { id: string; deviceId: string; type: string; status: string } | null = {
+      id: 'latest-upd-check-1',
+      deviceId: deviceA.id,
+      type: 'check_updates',
+      status: 'succeeded',
+    };
+
+    prisma.scanJob.findFirst = (async (args: { where: { deviceId: string; type?: string } }) => {
+      if (args.where.type === 'check_updates') {
+        return mockJob;
+      }
+      return null;
+    }) as unknown as typeof prisma.scanJob.findFirst;
+
+    try {
+      // 1. Owner gets 200 with job
+      const resOwner = await fetch(`${baseUrl}/api/devices/${deviceA.id}/update-checks/latest`, {
+        headers: { Authorization: `Bearer ${tokenUserA}` },
+      });
+      assert.strictEqual(resOwner.status, 200);
+      const bodyOwner = (await resOwner.json()) as { success: boolean; data: { job: { id: string; type: string } } };
+      assert.strictEqual(bodyOwner.success, true);
+      assert.strictEqual(bodyOwner.data.job.id, 'latest-upd-check-1');
+      assert.strictEqual(bodyOwner.data.job.type, 'check_updates');
+
+      // 2. Non-owner gets 404
+      const resNonOwner = await fetch(`${baseUrl}/api/devices/${deviceA.id}/update-checks/latest`, {
+        headers: { Authorization: `Bearer ${tokenUserB}` },
+      });
+      assert.strictEqual(resNonOwner.status, 404);
+
+      // 3. No update-checks found -> 404
+      mockJob = null;
+      const resNone = await fetch(`${baseUrl}/api/devices/${deviceA.id}/update-checks/latest`, {
+        headers: { Authorization: `Bearer ${tokenUserA}` },
+      });
+      assert.strictEqual(resNone.status, 404);
+      const bodyNone = (await resNone.json()) as { success: boolean; error: { code: string } };
+      assert.strictEqual(bodyNone.error.code, 'NO_JOBS_FOUND');
+    } finally {
+      prisma.device.findUnique = originalFindUnique;
+      prisma.scanJob.findFirst = originalFindFirst;
+    }
+  });
 });
