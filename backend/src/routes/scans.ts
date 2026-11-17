@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
+import { determinePackagesNeedingFetch } from '../metadata/cache.js';
 
 export const scanRouter = Router();
 
@@ -171,6 +172,182 @@ scanRouter.get('/devices/:id/update-checks/:jobId', requireAuth, async (req: Req
     });
   }
 });
+
+// POST /api/devices/:id/metadata-jobs - Queue metadata fetch job for apps with update_available that are missing or stale
+scanRouter.post('/devices/:id/metadata-jobs', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const user = req.user!;
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    // 1. Determine which apps with updateStatus === 'update_available' need metadata (missing or stale)
+    const { packagesToFetch, freshMetadata } = await determinePackagesNeedingFetch(device.id);
+
+    if (packagesToFetch.length === 0) {
+      res.status(200).json({
+        success: true,
+        data: {
+          queued: false,
+          message: 'All metadata is fresh or no updates available',
+          freshCount: freshMetadata.length,
+          packagesToFetch: [],
+        },
+      });
+      return;
+    }
+
+    // 2. Concurrency check: one active job of type get_package_metadata
+    const activeJob = await prisma.scanJob.findFirst({
+      where: {
+        deviceId: device.id,
+        type: 'get_package_metadata',
+        status: { in: ['queued', 'running'] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (activeJob) {
+      res.status(409).json({
+        success: false,
+        error: {
+          code: 'ACTIVE_JOB_EXISTS',
+          message: 'An active metadata job is already queued or running for this device.',
+          existingJobId: activeJob.id,
+          status: activeJob.status,
+        },
+      });
+      return;
+    }
+
+    const packageIds = packagesToFetch.map((p) => p.packageId);
+
+    // 3. Create ScanJob and audit event
+    const [job] = await prisma.$transaction([
+      prisma.scanJob.create({
+        data: {
+          deviceId: device.id,
+          requestedByUserId: user.id,
+          type: 'get_package_metadata',
+          status: 'queued',
+          progressPercent: 0,
+          progressStep: 'queued',
+          progressMessage: `Queued metadata fetch for ${packageIds.length} package(s)`,
+          appCount: packageIds.length,
+          skippedSteps: packageIds,
+        },
+      }),
+      prisma.auditEvent.create({
+        data: {
+          userId: user.id,
+          deviceId: device.id,
+          eventType: 'METADATA_JOB_QUEUED',
+          entityType: 'scan_jobs',
+          metadata: {
+            packageCount: packageIds.length,
+            packageIds,
+          },
+        },
+      }),
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        queued: true,
+        job,
+        packagesToFetch,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+});
+
+// GET /api/devices/:id/metadata-jobs/latest - Retrieve latest metadata job
+scanRouter.get('/devices/:id/metadata-jobs/latest', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const user = req.user!;
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    const latestJob = await prisma.scanJob.findFirst({
+      where: { deviceId: device.id, type: 'get_package_metadata' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latestJob) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'NO_JOBS_FOUND', message: 'No metadata jobs found for this device' },
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: { job: latestJob } });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+});
+
+// GET /api/devices/:id/metadata-jobs/:jobId - Retrieve specific metadata job details
+scanRouter.get('/devices/:id/metadata-jobs/:jobId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  const deviceId = String(req.params.id);
+  const jobId = String(req.params.jobId);
+  const user = req.user!;
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device || device.userId !== user.id) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
+    const job = await prisma.scanJob.findFirst({
+      where: { id: jobId, deviceId: device.id, type: 'get_package_metadata' },
+    });
+
+    if (!job) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'JOB_NOT_FOUND', message: 'Metadata job not found' },
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: { job } });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+    });
+  }
+});
+
 
 // GET /api/devices/:id/scans/latest - Retrieve the latest scan job for a device
 scanRouter.get('/devices/:id/scans/latest', requireAuth, async (req: Request, res: Response): Promise<void> => {

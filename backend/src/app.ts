@@ -8,6 +8,7 @@ import { scanRouter } from './routes/scans.js';
 import { agentJobRouter } from './routes/agentJobs.js';
 import { agentScanRouter } from './routes/agentScans.js';
 import { agentUpdateRouter } from './routes/agentUpdates.js';
+import { agentMetadataRouter } from './routes/agentMetadata.js';
 import { deviceDataRouter } from './routes/deviceData.js';
 
 export const app = express();
@@ -24,6 +25,8 @@ app.use(
 app.use('/api', agentScanRouter);
 app.use('/api', agentUpdateRouter);
 app.use('/api/v1', agentUpdateRouter);
+app.use('/api', agentMetadataRouter);
+app.use('/api/v1', agentMetadataRouter);
 
 // Body parsing
 app.use(express.json());
