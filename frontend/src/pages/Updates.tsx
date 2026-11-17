@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { UpdateItem } from '../api/updates';
 import { fetchPendingUpdates, approveUpdate, rejectUpdate } from '../api/updates';
+import { CheckUpdatesController } from '../components/CheckUpdatesController';
 import './Updates.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -106,6 +107,11 @@ export const Updates: React.FC = () => {
             {pendingCount} update{pendingCount === 1 ? '' : 's'} awaiting explicit user approval
           </p>
         </div>
+        <CheckUpdatesController
+          isOnline={true}
+          onCheckSuccess={loadUpdates}
+          buttonAriaLabel="Check for updates"
+        />
       </header>
 
       {/* Explicit Approval Gate Banner */}
@@ -169,8 +175,8 @@ export const Updates: React.FC = () => {
 
       {!isLoading && !error && eligibleUpdates.length === 0 && (
         <div className="state-box" data-testid="updates-empty">
-          <h3>All applications are up to date</h3>
-          <p>The Windows agent found no pending software upgrades for matched packages on your registered devices.</p>
+          <h3>Everything is up to date</h3>
+          <p>All applications are up to date. The Windows agent found no pending software upgrades for matched packages on your registered devices.</p>
         </div>
       )}
 

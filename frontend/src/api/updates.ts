@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { ScanJob } from './scans';
 
 export type UpdateStatus =
   | 'PENDING_APPROVAL'
@@ -87,3 +88,75 @@ export async function rejectUpdate(updateId: string, reason?: string): Promise<U
     throw err;
   }
 }
+
+export async function triggerUpdateCheck(deviceId?: string): Promise<{ jobId: string; status: string; isExisting?: boolean }> {
+  const endpoint = deviceId ? `/api/devices/${deviceId}/update-checks` : '/api/update-checks';
+  try {
+    const res = await apiClient.post<{
+      success: boolean;
+      data?: {
+        job?: { id?: string; status?: string };
+        id?: string;
+      };
+    }>(endpoint);
+
+    const job = res.data?.job;
+    const jobId = job?.id || res.data?.id || '';
+    return {
+      jobId,
+      status: job?.status || 'queued',
+      isExisting: false,
+    };
+  } catch (err: unknown) {
+    if (typeof err === 'object' && err !== null) {
+      const e = err as {
+        status?: number;
+        code?: string;
+        existingJobId?: string;
+        details?: Array<{ existingJobId?: string; status?: string }>;
+        data?: { error?: { existingJobId?: string; status?: string } };
+        response?: { data?: { error?: { existingJobId?: string; status?: string } } };
+      };
+
+      if (e.status === 409 || e.code === 'ACTIVE_JOB_EXISTS') {
+        const existingJobId =
+          e.existingJobId ||
+          e.details?.[0]?.existingJobId ||
+          e.data?.error?.existingJobId ||
+          e.response?.data?.error?.existingJobId;
+        const status =
+          e.details?.[0]?.status ||
+          e.data?.error?.status ||
+          e.response?.data?.error?.status ||
+          'running';
+        if (existingJobId) {
+          return {
+            jobId: existingJobId,
+            status,
+            isExisting: true,
+          };
+        }
+      }
+    }
+    throw err;
+  }
+}
+
+export async function fetchUpdateCheckJob(deviceId: string, jobId: string): Promise<ScanJob> {
+  const res = await apiClient.get<{ success: boolean; data: { job: ScanJob } }>(
+    `/api/devices/${deviceId}/update-checks/${jobId}`
+  );
+  return res.data?.job;
+}
+
+export async function fetchLatestUpdateCheckJob(deviceId: string): Promise<ScanJob | null> {
+  try {
+    const res = await apiClient.get<{ success: boolean; data: { job: ScanJob } }>(
+      `/api/devices/${deviceId}/update-checks/latest`
+    );
+    return res.data?.job || null;
+  } catch {
+    return null;
+  }
+}
+

@@ -449,3 +449,93 @@
   color: var(--text-muted);
   margin-top: 2px;
 }
+
+/* Update Column & Badges */
+.header-actions {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.summary-chip.chip-updates {
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.summary-chip.chip-updates.active {
+  background-color: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.app-update-cell {
+  vertical-align: top;
+  min-width: 170px;
+}
+
+.update-badge-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.update-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.badge-update-available {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.badge-up-to-date {
+  background-color: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-cannot-determine {
+  background-color: #fefce8;
+  color: #a16207;
+  border: 1px solid #fef08a;
+}
+
+.badge-not-checked {
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.version-delta {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ver-arrow {
+  color: #94a3b8;
+  font-weight: bold;
+}
+
+.ver-available {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.last-checked-time {
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+}

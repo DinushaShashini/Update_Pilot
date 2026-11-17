@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Application, ApplicationsFilterParams, MatchStatus } from '../api/applications';
+import type { Application, ApplicationsFilterParams, MatchStatus, AppUpdateStatus } from '../api/applications';
 import { fetchApplications } from '../api/applications';
 import { ScanNowController } from '../components/ScanNowController';
+import { CheckUpdatesController } from '../components/CheckUpdatesController';
 import './Applications.css';
 
 function getErrorMessage(err: unknown, fallback: string): string {
@@ -10,6 +11,63 @@ function getErrorMessage(err: unknown, fallback: string): string {
     return (err as { message: string }).message;
   }
   return fallback;
+}
+
+export function formatLastChecked(dateStr?: string | null): string {
+  if (!dateStr) return 'Not checked yet';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+export interface UpdateBadgeInfo {
+  status: AppUpdateStatus;
+  label: string;
+  icon: string;
+  className: string;
+}
+
+export function getUpdateBadgeInfo(status?: string | null): UpdateBadgeInfo {
+  switch (status) {
+    case 'update_available':
+      return {
+        status: 'update_available',
+        label: 'Update available',
+        icon: '⬆',
+        className: 'badge-update-available',
+      };
+    case 'up_to_date':
+      return {
+        status: 'up_to_date',
+        label: 'Up to date',
+        icon: '✔',
+        className: 'badge-up-to-date',
+      };
+    case 'unknown':
+      return {
+        status: 'unknown',
+        label: 'Cannot determine',
+        icon: '❓',
+        className: 'badge-cannot-determine',
+      };
+    case 'not_checked':
+    default:
+      return {
+        status: 'not_checked',
+        label: 'Not checked',
+        icon: '⏳',
+        className: 'badge-not-checked',
+      };
+  }
 }
 
 export function getEffectiveMatchStatus(app: Application): MatchStatus {
@@ -180,11 +238,18 @@ export const Applications: React.FC = () => {
             {totalCount} discovered applications • {managedCount} supported via WinGet • {updatesCount} updates available
           </p>
         </div>
-        <ScanNowController
-          isOnline={true}
-          onScanSuccess={loadData}
-          buttonAriaLabel="Trigger scan now"
-        />
+        <div className="header-actions">
+          <CheckUpdatesController
+            isOnline={true}
+            onCheckSuccess={loadData}
+            buttonAriaLabel="Check for updates"
+          />
+          <ScanNowController
+            isOnline={true}
+            onScanSuccess={loadData}
+            buttonAriaLabel="Trigger scan now"
+          />
+        </div>
       </header>
 
       {/* Search and Filters Controls */}
@@ -257,21 +322,35 @@ export const Applications: React.FC = () => {
         <section className="match-summary-bar" aria-label="Update support summary" data-testid="match-summary-bar">
           <button
             type="button"
-            className={`summary-chip ${matchStatusFilter === 'all' ? 'active' : ''}`}
+            className={`summary-chip ${matchStatusFilter === 'all' && statusFilter !== 'update_available' ? 'active' : ''}`}
             onClick={() => {
               setMatchStatusFilter('all');
+              setStatusFilter('all');
               setCurrentPage(1);
             }}
-            aria-pressed={matchStatusFilter === 'all'}
+            aria-pressed={matchStatusFilter === 'all' && statusFilter !== 'update_available'}
             data-testid="filter-chip-all"
           >
             All ({totalCount})
           </button>
           <button
             type="button"
+            className={`summary-chip chip-updates ${statusFilter === 'update_available' ? 'active' : ''}`}
+            onClick={() => {
+              setStatusFilter(statusFilter === 'update_available' ? 'all' : 'update_available');
+              setCurrentPage(1);
+            }}
+            aria-pressed={statusFilter === 'update_available'}
+            data-testid="filter-chip-updates"
+          >
+            <span aria-hidden="true">⬆</span> Updates available ({updatesCount})
+          </button>
+          <button
+            type="button"
             className={`summary-chip chip-matched ${matchStatusFilter === 'matched' ? 'active' : ''}`}
             onClick={() => {
               setMatchStatusFilter('matched');
+              setStatusFilter('all');
               setCurrentPage(1);
             }}
             aria-pressed={matchStatusFilter === 'matched'}
@@ -343,7 +422,7 @@ export const Applications: React.FC = () => {
                 <th scope="col">Application</th>
                 <th scope="col">Package ID</th>
                 <th scope="col">Version</th>
-                <th scope="col">Status</th>
+                <th scope="col">Update</th>
                 <th scope="col">Update support</th>
                 <th scope="col">Source</th>
               </tr>
@@ -354,6 +433,10 @@ export const Applications: React.FC = () => {
                 const matchInfo = getMatchDisplayInfo(app);
                 const isPopoverOpen = openPopoverId === rowKey;
                 const popoverId = `match-popover-${rowKey}`;
+
+                const effectiveUpdateStatus =
+                  app.updateStatus || (app.availableVersion ? 'update_available' : 'not_checked');
+                const updateBadge = getUpdateBadgeInfo(effectiveUpdateStatus);
 
                 return (
                   <tr
@@ -371,20 +454,26 @@ export const Applications: React.FC = () => {
                     <td className="app-name-cell">{app.name}</td>
                     <td className="app-package-id">{app.packageId || '—'}</td>
                     <td>{app.installedVersion}</td>
-                    <td>
-                      {app.availableVersion ? (
-                        <span className="badge-update-avail" data-testid="status-update-available">
-                          Update Available ({app.availableVersion})
+                    <td className="app-update-cell" data-testid="app-update-cell">
+                      <div className="update-badge-wrapper">
+                        <span
+                          className={`update-badge ${updateBadge.className}`}
+                          data-testid={`update-badge-${updateBadge.status}`}
+                        >
+                          <span aria-hidden="true">{updateBadge.icon}</span>
+                          <span>{updateBadge.label}</span>
                         </span>
-                      ) : app.isManaged ? (
-                        <span className="badge-managed" data-testid="status-supported">
-                          Supported
-                        </span>
-                      ) : (
-                        <span className="badge-unsupported" data-testid="status-unsupported">
-                          Unsupported
-                        </span>
-                      )}
+                        {effectiveUpdateStatus === 'update_available' && app.availableVersion && (
+                          <div className="version-delta" data-testid="version-delta">
+                            <span className="ver-installed">{app.installedVersion}</span>
+                            <span className="ver-arrow" aria-hidden="true"> → </span>
+                            <span className="ver-available">{app.availableVersion}</span>
+                          </div>
+                        )}
+                        <div className="last-checked-time" data-testid="last-checked-time">
+                          {app.updateCheckedAt ? `Checked ${formatLastChecked(app.updateCheckedAt)}` : 'Not checked'}
+                        </div>
+                      </div>
                     </td>
                     <td className="match-support-cell">
                       <div className="match-badge-wrapper">

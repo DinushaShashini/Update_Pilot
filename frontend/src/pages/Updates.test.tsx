@@ -52,6 +52,10 @@ describe('Software Updates & Approval Gate Screen', () => {
     expect(screen.getByRole('heading', { name: /software updates/i })).toBeDefined();
     expect(screen.getByText(/explicit user approval gate/i)).toBeDefined();
     expect(screen.getByText(/2 updates awaiting explicit user approval/i)).toBeDefined();
+
+    // Verify "Check for updates" button is present and no install button exists yet
+    expect(screen.getByTestId('check-updates-btn')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /^install/i })).toBeNull();
   });
 
   it('opens confirmation modal on Approve click and handles cancel', async () => {
@@ -128,6 +132,7 @@ describe('Software Updates & Approval Gate Screen', () => {
       expect(screen.getByTestId('updates-empty')).toBeDefined();
     });
 
+    expect(screen.getByText(/everything is up to date/i)).toBeDefined();
     expect(screen.getByText(/all applications are up to date/i)).toBeDefined();
   });
 

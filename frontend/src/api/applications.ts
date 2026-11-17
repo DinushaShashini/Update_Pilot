@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import { triggerScanJob } from './scans';
 
 export type MatchStatus = 'matched' | 'ambiguous' | 'unsupported' | 'pending';
+export type AppUpdateStatus = 'update_available' | 'up_to_date' | 'unknown' | 'not_checked';
 
 export interface MatchCandidate {
   packageId: string;
@@ -16,6 +17,8 @@ export interface Application {
   packageId?: string | null;
   installedVersion: string;
   availableVersion?: string | null;
+  updateStatus?: AppUpdateStatus;
+  updateCheckedAt?: string | null;
   source?: string | null;
   isManaged: boolean;
   lastScannedAt?: string | null;
@@ -34,6 +37,7 @@ export interface Application {
 export interface ApplicationsFilterParams {
   search?: string;
   status?: 'all' | 'update_available' | 'managed' | 'unsupported';
+  updateStatus?: 'all' | AppUpdateStatus;
   matchStatus?: 'all' | MatchStatus;
   source?: 'all' | 'winget' | 'msstore' | 'local';
   page?: number;
@@ -58,6 +62,7 @@ export async function fetchApplications(
   const queryParams: Record<string, string | number> = {};
   if (params?.search) queryParams.search = params.search;
   if (params?.status && params.status !== 'all') queryParams.status = params.status;
+  if (params?.updateStatus && params.updateStatus !== 'all') queryParams.updateStatus = params.updateStatus;
   if (params?.matchStatus && params.matchStatus !== 'all') queryParams.matchStatus = params.matchStatus;
   if (params?.source && params.source !== 'all') queryParams.source = params.source;
   if (params?.page) queryParams.page = params.page;

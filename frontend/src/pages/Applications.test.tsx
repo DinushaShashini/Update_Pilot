@@ -285,4 +285,103 @@ describe('Applications Inventory Screen', () => {
     expect(screen.getByTestId('ambiguous-candidates-list').textContent).toContain('Oracle.JDK.23');
     expect(screen.getByTestId('ambiguous-candidates-list').textContent).toContain('Oracle.JDK.25');
   });
+
+  it('renders Update column with badges (Update available, Up to date, Cannot determine, Not checked), delta and last checked time', async () => {
+    const updateApps: appsApi.Application[] = [
+      {
+        id: 'app-avail',
+        name: 'Git',
+        packageId: 'Git.Git',
+        installedVersion: '2.50.0',
+        availableVersion: '2.56.0',
+        updateStatus: 'update_available',
+        updateCheckedAt: '2026-11-12T10:00:00.000Z',
+        isManaged: true,
+        matchStatus: 'matched',
+      },
+      {
+        id: 'app-same',
+        name: 'VS Code',
+        packageId: 'Microsoft.VisualStudioCode',
+        installedVersion: '1.90.0',
+        availableVersion: null,
+        updateStatus: 'up_to_date',
+        updateCheckedAt: '2026-11-12T10:00:00.000Z',
+        isManaged: true,
+        matchStatus: 'matched',
+      },
+      {
+        id: 'app-unk',
+        name: 'Uncertain Tool',
+        packageId: 'Custom.Tool',
+        installedVersion: '1.0.0',
+        availableVersion: null,
+        updateStatus: 'unknown',
+        updateCheckedAt: '2026-11-12T10:00:00.000Z',
+        isManaged: true,
+        matchStatus: 'matched',
+      },
+      {
+        id: 'app-notchk',
+        name: 'Unchecked App',
+        packageId: 'Legacy.App',
+        installedVersion: '3.0.0',
+        availableVersion: null,
+        updateStatus: 'not_checked',
+        updateCheckedAt: null,
+        isManaged: false,
+        matchStatus: 'unsupported',
+      },
+    ];
+
+    vi.spyOn(appsApi, 'fetchApplications').mockResolvedValue({
+      total: 4,
+      page: 1,
+      limit: 15,
+      totalPages: 1,
+      applications: updateApps,
+    });
+
+    render(<Applications />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('update-badge-update_available')).toBeDefined();
+    });
+
+    // 1. Update available badge: icon + text, delta "installed → available", and checked time
+    const availBadge = screen.getByTestId('update-badge-update_available');
+    expect(availBadge.textContent).toContain('⬆');
+    expect(availBadge.textContent).toContain('Update available');
+    expect(screen.getByTestId('version-delta').textContent).toContain('2.50.0 → 2.56.0');
+
+    // 2. Up to date badge: icon + text
+    const sameBadge = screen.getByTestId('update-badge-up_to_date');
+    expect(sameBadge.textContent).toContain('✔');
+    expect(sameBadge.textContent).toContain('Up to date');
+
+    // 3. Cannot determine badge: icon + text
+    const unkBadge = screen.getByTestId('update-badge-unknown');
+    expect(unkBadge.textContent).toContain('❓');
+    expect(unkBadge.textContent).toContain('Cannot determine');
+
+    // 4. Not checked badge: icon + text
+    const notchkBadge = screen.getByTestId('update-badge-not_checked');
+    expect(notchkBadge.textContent).toContain('⏳');
+    expect(notchkBadge.textContent).toContain('Not checked');
+
+    // 5. Updates available filter chip
+    const updatesChip = screen.getByTestId('filter-chip-updates');
+    expect(updatesChip).toBeDefined();
+    expect(updatesChip.textContent).toContain('Updates available (1)');
+
+    // Click filter chip -> filters to updates available
+    fireEvent.click(updatesChip);
+    await waitFor(() => {
+      expect(screen.getByTestId('app-row-Git.Git')).toBeDefined();
+      expect(screen.queryByTestId('app-row-Microsoft.VisualStudioCode')).toBeNull();
+    });
+
+    // 6. Check for updates button
+    expect(screen.getByTestId('check-updates-btn')).toBeDefined();
+  });
 });
