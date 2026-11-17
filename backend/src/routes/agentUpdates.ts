@@ -3,6 +3,7 @@ import express from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { requireAgent } from '../middleware/auth.js';
+import { compareVersions } from '../versions/compare.js';
 
 export const agentUpdateRouter = Router();
 
@@ -123,6 +124,7 @@ agentUpdateRouter.post(
         const seenAppIds = new Set<string>();
         let updatesAvailableCount = 0;
         let unknownCount = 0;
+        const comparisonWarnings: string[] = [];
 
         for (const upd of updates) {
           const matchedApp = matchedByPkgId.get(upd.package_id.toLowerCase());
@@ -133,7 +135,11 @@ agentUpdateRouter.post(
 
           seenAppIds.add(matchedApp.id);
 
-          if (isUnknownVersion(upd.available_version) || isUnknownVersion(upd.installed_version)) {
+          const installedVer = !isUnknownVersion(upd.installed_version)
+            ? upd.installed_version
+            : matchedApp.installedVersion;
+
+          if (isUnknownVersion(upd.available_version) || isUnknownVersion(installedVer)) {
             unknownCount++;
             await tx.application.update({
               where: { id: matchedApp.id },
@@ -143,13 +149,41 @@ agentUpdateRouter.post(
                 updateCheckedAt: now,
               },
             });
-          } else {
+            continue;
+          }
+
+          const comparison = compareVersions(installedVer, upd.available_version);
+
+          if (comparison === 'older') {
             updatesAvailableCount++;
             await tx.application.update({
               where: { id: matchedApp.id },
               data: {
                 updateStatus: 'update_available',
                 availableVersion: upd.available_version.trim(),
+                updateCheckedAt: now,
+              },
+            });
+          } else if (comparison === 'same' || comparison === 'newer') {
+            // If WinGet lists an update but comparison says "same" or "newer", mark up_to_date and record a warning
+            const warn = `Package ${upd.package_id}: WinGet reported update available (${upd.available_version}) but installed version (${installedVer}) is ${comparison}; marked up_to_date`;
+            comparisonWarnings.push(warn);
+            await tx.application.update({
+              where: { id: matchedApp.id },
+              data: {
+                updateStatus: 'up_to_date',
+                availableVersion: null,
+                updateCheckedAt: now,
+              },
+            });
+          } else {
+            // comparison === 'unknown'
+            unknownCount++;
+            await tx.application.update({
+              where: { id: matchedApp.id },
+              data: {
+                updateStatus: 'unknown',
+                availableVersion: null,
                 updateCheckedAt: now,
               },
             });
@@ -211,6 +245,7 @@ agentUpdateRouter.post(
               updatesAvailableCount,
               unknownCount,
               ignoredCount: updates.length - seenAppIds.size,
+              warnings: comparisonWarnings,
             },
           },
         });

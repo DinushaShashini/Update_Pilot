@@ -260,6 +260,130 @@ describe('Update-Check Jobs & Results Storage API', () => {
     assert.equal((updatedJob as Record<string, unknown>).status, 'succeeded');
   });
 
+  it('marks app up_to_date and records a warning when WinGet lists an update but comparison says same or newer', async () => {
+    prisma.agentCredential.findUnique = (async ({ where }: { where: { tokenHash: string } }) => {
+      if (where.tokenHash === tokenAHash) {
+        return { id: 'cred-a', deviceId: deviceA.id, revokedAt: null, device: deviceA };
+      }
+      return null;
+    }) as unknown as typeof prisma.agentCredential.findUnique;
+
+    prisma.scanJob.findFirst = (async ({ where }: { where: { id: string; deviceId: string } }) => {
+      if (where.id === 'job-upd-cmp' && where.deviceId === deviceA.id) {
+        return {
+          id: 'job-upd-cmp',
+          deviceId: deviceA.id,
+          type: 'check_updates',
+          status: 'running',
+        };
+      }
+      return null;
+    }) as unknown as typeof prisma.scanJob.findFirst;
+
+    const dbApps = [
+      {
+        id: 'app-node-same',
+        deviceId: deviceA.id,
+        packageId: 'OpenJS.NodeJS',
+        matchedPackageId: 'OpenJS.NodeJS',
+        version: '20.10.0',
+        isInstalled: true,
+        matchStatus: 'matched',
+        updateStatus: 'not_checked',
+        availableVersion: null,
+      },
+      {
+        id: 'app-py-newer',
+        deviceId: deviceA.id,
+        packageId: 'Python.Python.3.12',
+        matchedPackageId: 'Python.Python.3.12',
+        version: '3.12.2',
+        isInstalled: true,
+        matchStatus: 'matched',
+        updateStatus: 'not_checked',
+        availableVersion: null,
+      },
+    ];
+
+    const updatedAppRows: Array<{ id: string; data: Record<string, unknown> }> = [];
+    let auditMetadata: Record<string, unknown> | null = null;
+
+    const mockTx = {
+      application: {
+        findMany: async () => dbApps,
+        update: async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
+          updatedAppRows.push({ id: where.id, data });
+          return { id: where.id, ...data };
+        },
+        updateMany: async () => ({ count: 0 }),
+      },
+      scanJob: {
+        update: async ({ data }: { data: Record<string, unknown> }) => ({ id: 'job-upd-cmp', ...data }),
+      },
+      device: {
+        update: async ({ data }: { data: Record<string, unknown> }) => ({ id: deviceA.id, ...data }),
+      },
+      auditEvent: {
+        create: async ({ data }: { data: { metadata: Record<string, unknown> } }) => {
+          auditMetadata = data.metadata;
+          return { id: 'audit-cmp', ...data };
+        },
+      },
+    };
+
+    prisma.$transaction = (async (fn: (tx: typeof mockTx) => Promise<unknown>) => fn(mockTx)) as unknown as typeof prisma.$transaction;
+
+    const res = await fetch(`${baseUrl}/api/agent/update-checks/job-upd-cmp/results`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenA}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        winget_available: true,
+        updates: [
+          {
+            name: 'NodeJS',
+            package_id: 'OpenJS.NodeJS',
+            installed_version: '20.10.0',
+            available_version: '20.10.0', // same version!
+            source: 'winget',
+          },
+          {
+            name: 'Python',
+            package_id: 'Python.Python.3.12',
+            installed_version: '3.12.2',
+            available_version: '3.12.1', // installed is newer!
+            source: 'winget',
+          },
+        ],
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { success: boolean; data: { updatesAvailableCount: number } };
+    assert.equal(body.success, true);
+    assert.equal(body.data.updatesAvailableCount, 0);
+
+    // Both should be marked up_to_date
+    const nodeUpd = updatedAppRows.find((r) => r.id === 'app-node-same');
+    assert.ok(nodeUpd);
+    assert.equal(nodeUpd.data.updateStatus, 'up_to_date');
+    assert.equal(nodeUpd.data.availableVersion, null);
+
+    const pyUpd = updatedAppRows.find((r) => r.id === 'app-py-newer');
+    assert.ok(pyUpd);
+    assert.equal(pyUpd.data.updateStatus, 'up_to_date');
+    assert.equal(pyUpd.data.availableVersion, null);
+
+    // Warnings should be recorded in audit event metadata
+    assert.ok(auditMetadata);
+    const warnings = (auditMetadata as { warnings: string[] }).warnings;
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /OpenJS\.NodeJS.*same.*marked up_to_date/);
+    assert.match(warnings[1], /Python\.Python\.3\.12.*newer.*marked up_to_date/);
+  });
+
   it('rejects wrong-device agent submission with 404 and rolls back on transaction error', async () => {
     prisma.agentCredential.findUnique = (async ({ where }: { where: { tokenHash: string } }) => {
       if (where.tokenHash === tokenAHash) {
