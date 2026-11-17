@@ -232,7 +232,10 @@ Returns aggregate cards for the active device.
       "total_apps_count": 196,
       "managed_apps_count": 112,
       "unsupported_apps_count": 84,
-      "pending_updates_count": 33,
+      "updates_available_count": 5,
+      "up_to_date_count": 105,
+      "unknown_update_count": 2,
+      "pending_updates_count": 5,
       "last_scan_status": "COMPLETED",
       "last_scan_at": "2026-10-30T14:15:00Z"
     },
@@ -260,6 +263,7 @@ Returns aggregate cards for the active device.
 - **Query Parameters**:
   - `includeRemoved` (`boolean`, optional): Include uninstalled apps (`isInstalled = false`, default: `false`).
   - `matchStatus` (`string`, optional): Filter by matching state (`matched` | `ambiguous` | `unsupported` | `pending`).
+  - `updateStatus` (`string`, optional): Filter by update status (`update_available` | `up_to_date` | `unknown` | `not_checked`).
 - **Success Response (200 OK)**:
 ```json
 {
@@ -278,6 +282,8 @@ Returns aggregate cards for the active device.
         "isManaged": true,
         "installedVersion": "2.50.0.2",
         "availableVersion": "2.56.0.3",
+        "updateStatus": "update_available",
+        "updateCheckedAt": "2026-11-12T14:20:00.000Z",
         "matchStatus": "matched",
         "matchReason": "WINGET_ID_PRESENT",
         "matchMessage": "Matched via verified WinGet package identifier reported directly by the Windows package manager.",
@@ -447,6 +453,101 @@ Retrieves status, live progress percentage, step description, and execution metr
 - **Error Codes**:
   - `401 Unauthorized`
   - `404 Not Found` (`DEVICE_NOT_FOUND` or `SCAN_JOB_NOT_FOUND`: job does not exist or does not belong to this device).
+
+---
+
+### 6.4 Trigger On-Demand Update Check
+Queues a new `check_updates` job for the specified device. The device must be owned by the authenticated user. Only one active job (`queued` or `running`) may exist at a time for a given device. Records `UPDATE_CHECK_REQUESTED` audit event.
+- **Method & Path**: `POST /api/devices/:id/update-checks` (alias: `POST /api/v1/devices/:id/update-checks`)
+- **Auth**: `Bearer <JWT>` (User JWT)
+- **Request Body**: None (or `{}`)
+- **Success Response (201 Created)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "requestedByUserId": "11111111-1111-1111-1111-111111111111",
+      "type": "check_updates",
+      "status": "queued",
+      "progressPercent": 0,
+      "progressStep": "queued",
+      "createdAt": "2026-11-12T14:40:00.000Z",
+      "startedAt": null,
+      "finishedAt": null,
+      "errorCode": null,
+      "errorMessage": null,
+      "appCount": 0
+    }
+  }
+}
+```
+- **Error Codes**:
+  - `401 Unauthorized`: Missing or invalid user JWT.
+  - `404 Not Found` (`DEVICE_NOT_FOUND`): Device does not exist or belongs to another user.
+  - `409 Conflict` (`ACTIVE_JOB_EXISTS`): A scan or update-check job is already active on this device.
+
+---
+
+### 6.5 Get Latest Update Check Job
+Retrieves the most recent `check_updates` job for the device.
+- **Method & Path**: `GET /api/devices/:id/update-checks/latest` (alias: `GET /api/v1/devices/:id/update-checks/latest`)
+- **Auth**: `Bearer <JWT>` (User JWT)
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "type": "check_updates",
+      "status": "succeeded",
+      "progressPercent": 100,
+      "progressStep": "completed",
+      "progressMessage": "12 matched apps checked: 3 updates available, 0 unknown",
+      "createdAt": "2026-11-12T14:40:00.000Z",
+      "startedAt": "2026-11-12T14:40:02.000Z",
+      "finishedAt": "2026-11-12T14:40:15.000Z",
+      "appCount": 3
+    }
+  }
+}
+```
+- **Error Codes**:
+  - `401 Unauthorized`
+  - `404 Not Found` (`DEVICE_NOT_FOUND` or `NO_UPDATE_CHECKS_FOUND`)
+
+---
+
+### 6.6 Get Update Check Job Status
+Retrieves status and execution progress for a specific `check_updates` job.
+- **Method & Path**: `GET /api/devices/:id/update-checks/:jobId` (alias: `GET /api/v1/devices/:id/update-checks/:jobId`)
+- **Auth**: `Bearer <JWT>` (User JWT)
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "deviceId": "22222222-2222-2222-2222-222222222222",
+      "type": "check_updates",
+      "status": "running",
+      "progressPercent": 50,
+      "progressStep": "checking_updates",
+      "createdAt": "2026-11-12T14:40:00.000Z",
+      "startedAt": "2026-11-12T14:40:02.000Z",
+      "finishedAt": null
+    }
+  }
+}
+```
+- **Error Codes**:
+  - `401 Unauthorized`
+  - `404 Not Found` (`DEVICE_NOT_FOUND` or `JOB_NOT_FOUND`)
 
 ---
 
@@ -953,7 +1054,98 @@ Reports a failed scan execution when scanning fails (e.g. WinGet and Registry bo
 
 ---
 
-### 9.9 Submit Update Execution Result (`update-jobs/results`)
+### 9.9 Submit Update Check Results (`update-checks/results`)
+Transmits the discovered available package updates from the agent's `check_updates` routine. Matches reported packages strictly against the device's matched installed applications, runs version comparison, and updates application update statuses in a single atomic transaction.
+- **Method & Path**: `POST /api/agent/update-checks/:id/results` (alias: `POST /api/v1/agent/update-checks/:id/results`)
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Body Size Limit**: 2MB
+- **Validation Limits (Zod Schema)**:
+  - `winget_available`: boolean (default: `true`).
+  - `updates`: array of update candidate objects (max 2,000 items).
+    - `name`: string, 1 to 256 characters.
+    - `package_id`: string, 1 to 256 characters.
+    - `installed_version`: string, 1 to 128 characters.
+    - `available_version`: string, 1 to 128 characters.
+    - `source`: optional string, max 50 characters.
+  - `warnings`: optional array of strings (max 200 items, each max 500 characters).
+  - `errors`: optional array of strings (max 200 items, each max 500 characters).
+- **Request Body**:
+```json
+{
+  "winget_available": true,
+  "updates": [
+    {
+      "name": "Git",
+      "package_id": "Git.Git",
+      "installed_version": "2.50.0.2",
+      "available_version": "2.56.0.3",
+      "source": "winget"
+    }
+  ],
+  "warnings": [],
+  "errors": []
+}
+```
+- **Backend Processing Rules**:
+  1. Only matched applications (`matchStatus: "matched"`) on this device are evaluated. Unmatched IDs reported by WinGet are discarded.
+  2. Runs `compareVersions(installedVersion, availableVersion)`.
+     - `"older"`: sets `updateStatus = "update_available"`, `availableVersion = available_version`.
+     - `"same"` or `"newer"`: sets `updateStatus = "up_to_date"`, `availableVersion = null`, records warning.
+     - `"unknown"`: sets `updateStatus = "unknown"`, `availableVersion = null` (never guesses).
+  3. Matched applications absent from the `updates` list are marked `up_to_date` (or `unknown` if `winget_available: false`).
+  4. Marks `scanJob` status `succeeded`, records `appCount = updatesAvailableCount`.
+  5. Logs `UPDATE_CHECK_SUCCEEDED` audit event.
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "77777777-7777-7777-7777-777777777777",
+    "status": "succeeded",
+    "checkedCount": 12,
+    "updatesAvailableCount": 1,
+    "unknownCount": 0
+  }
+}
+```
+- **Error Codes**:
+  - `400 Bad Request` (`VALIDATION_ERROR` or job not running)
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`)
+  - `409 Conflict` (`JOB_ALREADY_FINISHED`)
+
+---
+
+### 9.10 Submit Update Check Failure (`update-checks/failure`)
+Reports a failed update check execution when the check could not be completed.
+- **Method & Path**: `POST /api/agent/update-checks/:id/failure` (alias: `POST /api/v1/agent/update-checks/:id/failure`)
+- **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
+- **Request Body**:
+```json
+{
+  "error_code": 1,
+  "error_message": "Agent command execution timed out after 45 seconds"
+}
+```
+- **Success Response (200 OK)**:
+```json
+{
+  "success": true,
+  "data": {
+    "jobId": "77777777-7777-7777-7777-777777777777",
+    "status": "failed"
+  }
+}
+```
+- **Error Codes**:
+  - `400 Bad Request` (`VALIDATION_ERROR`)
+  - `401 Unauthorized`
+  - `404 Not Found` (`JOB_NOT_FOUND`)
+  - `409 Conflict` (`JOB_NOT_RUNNING`)
+
+---
+
+### 9.11 Submit Update Execution Result (`update-jobs/results`)
 Transmits the final outcome of an approved `winget upgrade` command execution.
 - **Method & Path**: `POST /api/v1/agent/update-jobs/:jobId/results`
 - **Auth**: `Bearer <AGENT_DEVICE_TOKEN>`
