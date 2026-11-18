@@ -4,6 +4,7 @@ import type { PackageMetadata } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sanitizeHttpsUrl } from '../security/sanitizer.js';
+import { generateConfirmationToken } from '../updates/token.js';
 
 export const updatePreviewRouter = Router();
 
@@ -211,9 +212,7 @@ updatePreviewRouter.post(
       const publisher = metadata?.publisher || application.publisher || 'Unknown';
 
       // 7. Generate random, single-use, 5-minute confirmation token
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      const { token: rawToken, tokenHash, expiresAt } = generateConfirmationToken();
 
       // 8. Store UpdatePreview in database
       const preview = await prisma.updatePreview.create({
