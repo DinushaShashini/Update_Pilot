@@ -22,6 +22,7 @@ model User {
   devices      Device[]
   scanJobs     ScanJob[]
   auditEvents  AuditEvent[]
+  updatePreviews UpdatePreview[]
 
   @@map("users")
 }
@@ -42,6 +43,7 @@ model Device {
   scanJobs     ScanJob[]
   auditEvents  AuditEvent[]
   applications Application[]
+  updatePreviews UpdatePreview[]
 
   @@index([userId])
   @@map("devices")
@@ -130,6 +132,7 @@ model Application {
   updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   device           Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  updatePreviews   UpdatePreview[]
 
   @@index([deviceId, name])
   @@index([deviceId, matchStatus])
@@ -154,5 +157,29 @@ model PackageMetadata {
   @@index([packageId])
   @@index([expiresAt])
   @@map("package_metadata")
+}
+
+model UpdatePreview {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  deviceId         String      @map("device_id") @db.Uuid
+  applicationId    String      @map("application_id") @db.Uuid
+  packageId        String      @map("package_id") @db.VarChar(256)
+  installedVersion String      @map("installed_version") @db.VarChar(128)
+  targetVersion    String      @map("target_version") @db.VarChar(128)
+  source           String      @default("winget") @db.VarChar(50)
+  tokenHash        String      @map("token_hash") @db.VarChar(128)
+  expiresAt        DateTime    @map("expires_at") @db.Timestamptz(6)
+  usedAt           DateTime?   @map("used_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device           Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deviceId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("update_previews")
 }
 

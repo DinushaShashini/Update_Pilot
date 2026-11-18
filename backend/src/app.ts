@@ -10,6 +10,7 @@ import { agentScanRouter } from './routes/agentScans.js';
 import { agentUpdateRouter } from './routes/agentUpdates.js';
 import { agentMetadataRouter } from './routes/agentMetadata.js';
 import { deviceDataRouter } from './routes/deviceData.js';
+import { updatePreviewRouter } from './routes/updatePreview.js';
 
 export const app = express();
 
@@ -105,6 +106,8 @@ app.use('/api', scanRouter);
 app.use('/api', agentJobRouter);
 app.use('/api', deviceDataRouter);
 app.use('/api/v1', deviceDataRouter);
+app.use('/api', updatePreviewRouter);
+app.use('/api/v1', updatePreviewRouter);
 
 // Centralized error handler
 app.use(errorHandler);
