@@ -9,6 +9,7 @@ import { signToken } from '../middleware/auth.js';
 describe('Update Preview API (POST /api/updates/preview)', () => {
   let server: Server;
   let baseUrl: string;
+  let defaultAgentCredentialFindUnique: any;
 
   const userA = { id: '11111111-1111-1111-1111-111111111111', email: 'usera@example.com' };
   const userB = { id: '22222222-2222-2222-2222-222222222222', email: 'userb@example.com' };
@@ -70,6 +71,10 @@ describe('Update Preview API (POST /api/updates/preview)', () => {
   };
 
   beforeEach(async () => {
+    defaultAgentCredentialFindUnique = prisma.agentCredential?.findUnique;
+    if (prisma.agentCredential) {
+      prisma.agentCredential.findUnique = (async () => null) as unknown as typeof prisma.agentCredential.findUnique;
+    }
     await new Promise<void>((resolve) => {
       server = app.listen(0, '127.0.0.1', () => {
         const addr = server.address();
@@ -82,6 +87,9 @@ describe('Update Preview API (POST /api/updates/preview)', () => {
   });
 
   afterEach(async () => {
+    if (prisma.agentCredential && defaultAgentCredentialFindUnique) {
+      prisma.agentCredential.findUnique = defaultAgentCredentialFindUnique;
+    }
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
@@ -307,5 +315,216 @@ describe('Update Preview API (POST /api/updates/preview)', () => {
         prisma.updatePreview.create = origPreviewCreate;
       }
     }
+  });
+
+  describe('Validation & Rejection Rules', () => {
+    it('rejects unmatched application with 400 (APP_NOT_MATCHED)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origApp = prisma.application.findUnique;
+      prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+      prisma.application.findUnique = (async () => ({
+        ...appWithUpdate,
+        matchStatus: 'unsupported',
+      })) as unknown as typeof prisma.application.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'APP_NOT_MATCHED');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        prisma.application.findUnique = origApp;
+      }
+    });
+
+    it('rejects ambiguous application with 400 (APP_AMBIGUOUS)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origApp = prisma.application.findUnique;
+      prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+      prisma.application.findUnique = (async () => ({
+        ...appWithUpdate,
+        matchStatus: 'ambiguous',
+      })) as unknown as typeof prisma.application.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'APP_AMBIGUOUS');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        prisma.application.findUnique = origApp;
+      }
+    });
+
+    it('rejects application when no update is available with 400 (NO_UPDATE_AVAILABLE)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origApp = prisma.application.findUnique;
+      prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+      prisma.application.findUnique = (async () => ({
+        ...appWithUpdate,
+        updateStatus: 'up_to_date',
+        availableVersion: null,
+      })) as unknown as typeof prisma.application.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'NO_UPDATE_AVAILABLE');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        prisma.application.findUnique = origApp;
+      }
+    });
+
+    it('rejects requested target differing from detected available version with 400 (TARGET_VERSION_MISMATCH)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origApp = prisma.application.findUnique;
+      prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+      prisma.application.findUnique = (async () => appWithUpdate) as unknown as typeof prisma.application.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            applicationId: appWithUpdate.id,
+            deviceId: deviceA.id,
+            targetVersion: '9.9.9', // Different from 2.56.0
+          }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'TARGET_VERSION_MISMATCH');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        prisma.application.findUnique = origApp;
+      }
+    });
+
+    it('rejects revoked device with 400 (DEVICE_REVOKED)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origCredential = prisma.agentCredential.findUnique;
+      prisma.device.findUnique = (async () => ({
+        ...deviceA,
+        status: 'REVOKED',
+      })) as unknown as typeof prisma.device.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'DEVICE_REVOKED');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        if (origCredential) prisma.agentCredential.findUnique = origCredential;
+      }
+    });
+
+    it('rejects device offline beyond threshold with 400 (DEVICE_OFFLINE)', async () => {
+      const origDevice = prisma.device.findUnique;
+      prisma.device.findUnique = (async () => ({
+        ...deviceA,
+        status: 'OFFLINE',
+        lastSeenAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago (> 15 min threshold)
+      })) as unknown as typeof prisma.device.findUnique;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 400);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'DEVICE_OFFLINE');
+      } finally {
+        prisma.device.findUnique = origDevice;
+      }
+    });
+
+    it('rejects active update job conflict with 409 (ACTIVE_UPDATE_EXISTS)', async () => {
+      const origDevice = prisma.device.findUnique;
+      const origApp = prisma.application.findUnique;
+      const origScanJob = prisma.scanJob.findFirst;
+
+      prisma.device.findUnique = (async () => deviceA) as unknown as typeof prisma.device.findUnique;
+      prisma.application.findUnique = (async () => appWithUpdate) as unknown as typeof prisma.application.findUnique;
+      prisma.scanJob.findFirst = (async () => ({
+        id: 'job-active-update',
+        deviceId: deviceA.id,
+        type: 'apply_update',
+        status: 'running',
+        progressPercent: 50,
+      })) as unknown as typeof prisma.scanJob.findFirst;
+
+      try {
+        const res = await fetch(`${baseUrl}/api/updates/preview`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokenUserA}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ applicationId: appWithUpdate.id, deviceId: deviceA.id }),
+        });
+
+        assert.strictEqual(res.status, 409);
+        const body = (await res.json()) as { success: boolean; error: { code: string } };
+        assert.strictEqual(body.success, false);
+        assert.strictEqual(body.error.code, 'ACTIVE_UPDATE_EXISTS');
+      } finally {
+        prisma.device.findUnique = origDevice;
+        prisma.application.findUnique = origApp;
+        prisma.scanJob.findFirst = origScanJob;
+      }
+    });
   });
 });

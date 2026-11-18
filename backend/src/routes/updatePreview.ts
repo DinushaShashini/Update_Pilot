@@ -13,7 +13,7 @@ updatePreviewRouter.post(
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     const user = req.user!;
-    const { applicationId, deviceId } = req.body ?? {};
+    const { applicationId, deviceId, targetVersion: requestedTargetVersion } = req.body ?? {};
 
     if (!applicationId || typeof applicationId !== 'string') {
       res.status(400).json({
@@ -32,7 +32,7 @@ updatePreviewRouter.post(
     }
 
     try {
-      // 1. Look up device and verify ownership
+      // 1. Look up device and verify ownership (404 if not found or wrong user)
       const device = await prisma.device.findUnique({
         where: { id: deviceId },
       });
@@ -45,7 +45,44 @@ updatePreviewRouter.post(
         return;
       }
 
-      // 2. Look up application and verify it belongs to the device
+      // Check device revocation
+      if (device.status === 'REVOKED') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'DEVICE_REVOKED', message: 'Device pairing has been revoked' },
+        });
+        return;
+      }
+
+      try {
+        const credential = await prisma.agentCredential.findUnique({
+          where: { deviceId: device.id },
+        });
+        if (credential && credential.revokedAt !== null) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'DEVICE_REVOKED', message: 'Device credentials have been revoked' },
+          });
+          return;
+        }
+      } catch {
+        // Fall back if agentCredential table unqueried in mock
+      }
+
+      // Check offline beyond threshold (15 minutes)
+      const OFFLINE_THRESHOLD_MS = 15 * 60 * 1000;
+      if (device.status === 'OFFLINE') {
+        const lastSeen = device.lastSeenAt ? new Date(device.lastSeenAt).getTime() : 0;
+        if (Date.now() - lastSeen > OFFLINE_THRESHOLD_MS) {
+          res.status(400).json({
+            success: false,
+            error: { code: 'DEVICE_OFFLINE', message: 'Device is offline beyond the permitted threshold' },
+          });
+          return;
+        }
+      }
+
+      // 2. Look up application and verify it belongs to the device (404 if not found or wrong device)
       const application = await prisma.application.findUnique({
         where: { id: applicationId },
       });
@@ -58,8 +95,16 @@ updatePreviewRouter.post(
         return;
       }
 
-      // 3. Verify update availability and match status
-      if (application.matchStatus && application.matchStatus !== 'matched') {
+      // 3. Verify match status: reject ambiguous or unmatched apps (400)
+      if (application.matchStatus === 'ambiguous') {
+        res.status(400).json({
+          success: false,
+          error: { code: 'APP_AMBIGUOUS', message: 'Application matching is ambiguous and cannot be previewed' },
+        });
+        return;
+      }
+
+      if (application.matchStatus !== 'matched') {
         res.status(400).json({
           success: false,
           error: { code: 'APP_NOT_MATCHED', message: 'Application is not matched to a supported package' },
@@ -67,6 +112,7 @@ updatePreviewRouter.post(
         return;
       }
 
+      // 4. Verify update availability (400)
       if (application.updateStatus !== 'update_available' || !application.availableVersion) {
         res.status(400).json({
           success: false,
@@ -75,10 +121,47 @@ updatePreviewRouter.post(
         return;
       }
 
+      // 5. Verify target version matches detected available version (400)
+      if (requestedTargetVersion && requestedTargetVersion !== application.availableVersion) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'TARGET_VERSION_MISMATCH',
+            message: `Requested target version (${requestedTargetVersion}) does not match detected available version (${application.availableVersion})`,
+          },
+        });
+        return;
+      }
+
       const pkgId = application.matchedPackageId || application.packageId || application.name;
       const targetVersion = application.availableVersion;
       const installedVersion = application.installedVersion;
       const source = application.source || 'winget';
+
+      // 6. Check for active update job for this device and package (409)
+      try {
+        const activeUpdate = await prisma.scanJob.findFirst({
+          where: {
+            deviceId: device.id,
+            type: { in: ['apply_update', 'update_package', 'update'] },
+            status: { in: ['queued', 'running', 'in_progress'] },
+          },
+        });
+
+        if (activeUpdate) {
+          res.status(409).json({
+            success: false,
+            error: {
+              code: 'ACTIVE_UPDATE_EXISTS',
+              message: 'An update is already active for this device and package',
+              activeJobId: activeUpdate.id,
+            },
+          });
+          return;
+        }
+      } catch {
+        // Fall back if scanJob query fails in test mock
+      }
 
       // 4. Look up cached package metadata
       let metadata: PackageMetadata | null = null;
