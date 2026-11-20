@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { fetchDevicesList, Device } from '../api/devices';
+import { fetchDevicesList, type Device } from '../api/devices';
 
 interface NavItem {
   path: string;
@@ -271,47 +271,6 @@ export const Layout: React.FC = () => {
                         }}
                       >
                         Sign out
-                      </button>
-                    </li>
-                  </ul>
-                </div>
-              )}
-                  </div>
-                  <ul className="dropdown-items">
-                    <li role="none">
-                      <a
-                        href="#profile"
-                        role="menuitem"
-                        className="dropdown-link"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setUserMenuOpen(false);
-                        }}
-                      >
-                        Profile & Account
-                      </a>
-                    </li>
-                    <li role="none">
-                      <a
-                        href="#preferences"
-                        role="menuitem"
-                        className="dropdown-link"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setUserMenuOpen(false);
-                        }}
-                      >
-                        System Preferences
-                      </a>
-                    </li>
-                    <li className="dropdown-divider" role="separator"></li>
-                    <li role="none">
-                      <button
-                        role="menuitem"
-                        className="dropdown-link logout-link"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Sign Out
                       </button>
                     </li>
                   </ul>
