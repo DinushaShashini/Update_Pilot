@@ -96,14 +96,46 @@ async function createDeviceJob(
   }
 }
 
-// POST /api/devices/:id/scans - Queue a new scan job for a device
-scanRouter.post('/devices/:id/scans', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  await createDeviceJob(String(req.params.id), req.user!.id, 'scan_inventory', 'SCAN_QUEUED', res);
+// POST /api/devices/:id/scans & POST /api/scans - Queue a new scan job for a device
+scanRouter.post(['/devices/:id/scans', '/v1/devices/:id/scans', '/scans', '/v1/scans'], requireAuth, async (req: Request, res: Response): Promise<void> => {
+  let targetDeviceId = req.params.id ? String(req.params.id) : (req.body?.deviceId ? String(req.body.deviceId) : null);
+  if (!targetDeviceId) {
+    const firstDevice = await prisma.device.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (firstDevice) {
+      targetDeviceId = firstDevice.id;
+    } else {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'No registered device found' },
+      });
+      return;
+    }
+  }
+  await createDeviceJob(targetDeviceId, req.user!.id, 'scan_inventory', 'SCAN_QUEUED', res);
 });
 
-// POST /api/devices/:id/update-checks - Queue a new check_updates job for a device
-scanRouter.post('/devices/:id/update-checks', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  await createDeviceJob(String(req.params.id), req.user!.id, 'check_updates', 'UPDATE_CHECK_QUEUED', res);
+// POST /api/devices/:id/update-checks & POST /api/update-checks - Queue a new check_updates job for a device
+scanRouter.post(['/devices/:id/update-checks', '/v1/devices/:id/update-checks', '/update-checks', '/v1/update-checks'], requireAuth, async (req: Request, res: Response): Promise<void> => {
+  let targetDeviceId = req.params.id ? String(req.params.id) : (req.body?.deviceId ? String(req.body.deviceId) : null);
+  if (!targetDeviceId) {
+    const firstDevice = await prisma.device.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (firstDevice) {
+      targetDeviceId = firstDevice.id;
+    } else {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'No registered device found' },
+      });
+      return;
+    }
+  }
+  await createDeviceJob(targetDeviceId, req.user!.id, 'check_updates', 'UPDATE_CHECK_QUEUED', res);
 });
 
 // GET /api/devices/:id/update-checks/latest - Retrieve the latest update-check job for a device

@@ -1,10 +1,138 @@
+import crypto from 'node:crypto';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { requireAgent } from '../middleware/auth.js';
+import { getActivePairingCode, redeemPairingCode } from './deviceData.js';
 
 export const agentJobRouter = Router();
+
+// POST /api/agent/pair & POST /api/v1/agent/pair - Agent device registration
+agentJobRouter.post(
+  ['/agent/pair', '/v1/agent/pair'],
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code, pairing_token, hostname, computer_name, os_version, agent_version } = req.body || {};
+      const pairingCode = (code || pairing_token || '').trim();
+
+      if (!pairingCode) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_CODE', message: 'Pairing code is required.' },
+        });
+        return;
+      }
+
+      const activeRecord = getActivePairingCode(pairingCode);
+      if (!activeRecord) {
+        res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_PAIRING_CODE', message: 'Invalid pairing code provided.' },
+        });
+        return;
+      }
+
+      if (Date.now() > activeRecord.expiresAt) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'TOKEN_EXPIRED', message: 'The pairing code has expired.' },
+        });
+        return;
+      }
+
+      if (activeRecord.redeemed) {
+        res.status(403).json({
+          success: false,
+          error: { code: 'TOKEN_ALREADY_USED', message: 'This pairing code has already been redeemed.' },
+        });
+        return;
+      }
+
+      redeemPairingCode(pairingCode);
+
+      // Create new device and permanent token
+      const deviceHostname = hostname || computer_name || 'DESKTOP-AGENT';
+      const deviceOs = os_version || 'Windows';
+      const deviceAgentVer = agent_version || '1.0.0';
+
+      const agentRawToken = `agt_${crypto.randomBytes(24).toString('hex')}`;
+      const tokenHash = crypto.createHash('sha256').update(agentRawToken).digest('hex');
+
+      // Ensure the user exists in database before creating device
+      await prisma.user.upsert({
+        where: { id: activeRecord.userId },
+        update: {},
+        create: {
+          id: activeRecord.userId,
+          email: 'dinusha@example.com',
+          role: 'USER',
+          passwordHash: 'dummy_dev_hash',
+        },
+      });
+
+      const device = await prisma.device.create({
+        data: {
+          userId: activeRecord.userId,
+          name: deviceHostname,
+          hostname: deviceHostname,
+          osVersion: deviceOs,
+          agentVersion: deviceAgentVer,
+          status: 'ONLINE',
+          lastSeenAt: new Date(),
+        },
+      });
+
+      await prisma.agentCredential.create({
+        data: {
+          deviceId: device.id,
+          tokenHash,
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          device_id: device.id,
+          token: agentRawToken,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// POST /api/agent/heartbeat & POST /api/v1/agent/heartbeat - Heartbeat ping
+agentJobRouter.post(
+  ['/agent/heartbeat', '/v1/agent/heartbeat'],
+  requireAgent,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const device = req.agentDevice!;
+      await prisma.device.update({
+        where: { id: device.id },
+        data: {
+          status: 'ONLINE',
+          lastSeenAt: new Date(),
+        },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: { status: 'ONLINE', received_at: new Date().toISOString() },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
 
 const progressSchema = z.object({
   percent: z.number().int().min(0).max(100),

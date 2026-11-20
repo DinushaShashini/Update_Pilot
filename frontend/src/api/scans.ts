@@ -60,11 +60,13 @@ export async function triggerScanJob(deviceId?: string): Promise<TriggerScanResu
       if (e.status === 409 || e.code === 'ACTIVE_SCAN_EXISTS') {
         const existingJobId =
           e.existingJobId ||
+          (e as unknown as { rawData?: { existingJobId?: string } }).rawData?.existingJobId ||
           e.details?.[0]?.existingJobId ||
           e.data?.error?.existingJobId ||
           e.response?.data?.error?.existingJobId;
 
         const status =
+          (e as unknown as { rawData?: { status?: string } }).rawData?.status ||
           e.details?.[0]?.status ||
           e.data?.error?.status ||
           e.response?.data?.error?.status ||

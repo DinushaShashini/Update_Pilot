@@ -8,20 +8,40 @@ import { buildReleaseInfo } from '../metadata/releaseInfo.js';
 
 export const deviceDataRouter = Router();
 
-// GET /api/devices/:id/applications - List installed applications with optional includeRemoved
+// GET /api/devices/:id/applications & GET /api/applications - List installed applications with optional includeRemoved
 deviceDataRouter.get(
-  '/devices/:id/applications',
+  ['/devices/:id/applications', '/v1/devices/:id/applications', '/applications', '/v1/applications'],
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
-    const deviceId = String(req.params.id);
+    let targetDeviceId = req.params.id ? String(req.params.id) : (req.query.deviceId ? String(req.query.deviceId) : null);
     const user = req.user!;
     const includeRemoved = req.query.includeRemoved === 'true' || req.query.includeRemoved === '1';
     const matchStatusFilter = req.query.matchStatus ? String(req.query.matchStatus).toLowerCase() : undefined;
     const updateStatusFilter = req.query.updateStatus ? String(req.query.updateStatus).toLowerCase() : undefined;
 
     try {
+      if (!targetDeviceId) {
+        const firstDevice = await prisma.device.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (firstDevice) {
+          targetDeviceId = firstDevice.id;
+        } else {
+          res.status(200).json({
+            success: true,
+            data: {
+              total: 0,
+              applications: [],
+              items: [],
+            },
+          });
+          return;
+        }
+      }
+
       const device = await prisma.device.findUnique({
-        where: { id: deviceId },
+        where: { id: targetDeviceId },
       });
 
       if (!device || device.userId !== user.id) {
@@ -694,17 +714,33 @@ deviceDataRouter.get(
   }
 );
 
-// GET /api/devices/:id/history - Scan jobs history with status, duration, app count and error message
+// GET /api/devices/:id/history & GET /api/history - Scan jobs history with status, duration, app count and error message
 deviceDataRouter.get(
-  '/devices/:id/history',
+  ['/devices/:id/history', '/v1/devices/:id/history', '/history', '/v1/history'],
   requireAuth,
   async (req: Request, res: Response): Promise<void> => {
-    const deviceId = String(req.params.id);
+    let targetDeviceId = req.params.id ? String(req.params.id) : (req.query.deviceId ? String(req.query.deviceId) : null);
     const user = req.user!;
 
     try {
+      if (!targetDeviceId) {
+        const firstDevice = await prisma.device.findFirst({
+          where: { userId: user.id },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (firstDevice) {
+          targetDeviceId = firstDevice.id;
+        } else {
+          res.status(200).json({
+            success: true,
+            data: [],
+          });
+          return;
+        }
+      }
+
       const device = await prisma.device.findUnique({
-        where: { id: deviceId },
+        where: { id: targetDeviceId },
       });
 
       if (!device || device.userId !== user.id) {
@@ -755,6 +791,150 @@ deviceDataRouter.get(
       res.status(200).json({
         success: true,
         data: history,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// GET /api/devices & GET /api/v1/devices - List devices for the user
+deviceDataRouter.get(
+  ['/devices', '/v1/devices'],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const user = req.user!;
+    try {
+      const devices = await prisma.device.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const formatted = devices.map((d) => ({
+        id: d.id,
+        name: d.name,
+        hostname: d.hostname,
+        os: d.osVersion,
+        osVersion: d.osVersion,
+        agentVersion: d.agentVersion,
+        status: d.status,
+        connectionStatus: d.status === 'ONLINE' ? 'Online' : (d.status === 'REVOKED' ? 'Revoked' : 'Offline'),
+        lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
+        pairedAt: d.createdAt.toISOString(),
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: formatted,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+interface ActivePairingCode {
+  code: string;
+  userId: string;
+  expiresAt: number;
+  redeemed: boolean;
+}
+
+const activePairingCodes = new Map<string, ActivePairingCode>();
+
+export function getActivePairingCode(code: string): ActivePairingCode | undefined {
+  return activePairingCodes.get(code);
+}
+
+export function redeemPairingCode(code: string): boolean {
+  const item = activePairingCodes.get(code);
+  if (!item) return false;
+  item.redeemed = true;
+  return true;
+}
+
+// POST /api/devices/pairing-token & POST /api/v1/devices/pairing-token - Generate a pairing code
+deviceDataRouter.post(
+  ['/devices/pairing-token', '/v1/devices/pairing-token'],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = req.user!;
+      // Generate a 6-character random alphanumeric code or token
+      const codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
+      }
+      const expiresInSeconds = 900;
+      const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+
+      activePairingCodes.set(code, {
+        code,
+        userId: user.id,
+        expiresAt: expiresAt.getTime(),
+        redeemed: false,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          code,
+          pairing_token: code,
+          token: code,
+          expires_at: expiresAt.toISOString(),
+          expires_in_seconds: expiresInSeconds,
+          pairing_command: `python agent.py pair --server http://localhost:3000 --code ${code}`,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: (error as Error).message },
+      });
+    }
+  }
+);
+
+// POST /api/devices/:id/revoke & POST /api/v1/devices/:id/revoke - Revoke a device
+deviceDataRouter.post(
+  ['/devices/:id/revoke', '/v1/devices/:id/revoke'],
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const deviceId = String(req.params.id);
+    const user = req.user!;
+    try {
+      const device = await prisma.device.findUnique({
+        where: { id: deviceId },
+      });
+
+      if (!device || device.userId !== user.id) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+        });
+        return;
+      }
+
+      await prisma.device.update({
+        where: { id: device.id },
+        data: { status: 'REVOKED' },
+      });
+
+      await prisma.agentCredential.updateMany({
+        where: { deviceId: device.id },
+        data: { revokedAt: new Date() },
+      });
+
+      res.status(200).json({
+        success: true,
+        data: { id: device.id, status: 'REVOKED' },
       });
     } catch (error) {
       res.status(500).json({

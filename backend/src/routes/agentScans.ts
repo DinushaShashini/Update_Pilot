@@ -32,16 +32,39 @@ const scanFailurePayloadSchema = z.object({
   error_message: z.string().max(1024),
 });
 
-// POST /api/agent/scans/:id/results - Submit inventory scan results
+// POST /api/agent/scans/:id/results & POST /api/agent/scans/results - Submit inventory scan results
 agentScanRouter.post(
-  '/agent/scans/:id/results',
+  ['/agent/scans/:id/results', '/agent/scans/results', '/v1/agent/scans/:id/results', '/v1/agent/scans/results'],
   scanResultsBodyLimit,
   requireAgent,
   async (req: Request, res: Response): Promise<void> => {
-    const jobId = String(req.params.id);
+    let jobId = req.params.id ? String(req.params.id) : null;
     const device = req.agentDevice!;
 
     try {
+      // If no explicit jobId provided (e.g. from CLI 'agent scan'), find or create an active scan job
+      if (!jobId) {
+        let activeJob = await prisma.scanJob.findFirst({
+          where: { deviceId: device.id, type: 'scan_inventory', status: { in: ['queued', 'running'] } },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (!activeJob) {
+          const registeredDevice = await prisma.device.findUnique({ where: { id: device.id } });
+          activeJob = await prisma.scanJob.create({
+            data: {
+              deviceId: device.id,
+              requestedByUserId: registeredDevice!.userId,
+              type: 'scan_inventory',
+              status: 'running',
+              progressPercent: 50,
+              progressStep: 'scanning',
+              startedAt: new Date(),
+            },
+          });
+        }
+        jobId = activeJob.id;
+      }
+
       // 1. Verify job exists for this device
       const job = await prisma.scanJob.findFirst({
         where: {
@@ -82,8 +105,14 @@ agentScanRouter.post(
         return;
       }
 
+      // Normalize payload: accept both discovered_packages and applications
+      const body = { ...req.body };
+      if (!body.discovered_packages && Array.isArray(body.applications)) {
+        body.discovered_packages = body.applications;
+      }
+
       // 3. Validate payload with Zod
-      const parseResult = scanResultPayloadSchema.safeParse(req.body);
+      const parseResult = scanResultPayloadSchema.safeParse(body);
       if (!parseResult.success) {
         res.status(400).json({
           success: false,

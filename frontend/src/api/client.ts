@@ -19,13 +19,15 @@ export class ApiError extends Error {
   public readonly code: string;
   public readonly details?: FieldError[];
   public readonly traceId?: string;
+  public readonly rawData?: Record<string, unknown>;
 
   constructor(
     status: number,
     code: string,
     message: string,
     details?: FieldError[],
-    traceId?: string
+    traceId?: string,
+    rawData?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -33,6 +35,7 @@ export class ApiError extends Error {
     this.code = code;
     this.details = details;
     this.traceId = traceId;
+    this.rawData = rawData;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
@@ -166,7 +169,8 @@ export class ApiClient {
           errorObj.code || 'API_ERROR',
           errorObj.message || response.statusText || 'Request failed',
           errorObj.details,
-          errorObj.trace_id
+          errorObj.trace_id,
+          errorObj as unknown as Record<string, unknown>
         );
       }
 

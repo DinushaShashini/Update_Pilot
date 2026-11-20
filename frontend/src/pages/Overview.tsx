@@ -75,7 +75,11 @@ export const Overview: React.FC = () => {
             <div className="metric-card" data-testid="metric-total-apps">
               <div className="metric-card-header">
                 <span className="metric-card-title">Total Apps</span>
-                <span aria-hidden="true">📦</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
               </div>
               <div className="metric-value">{metrics.totalApps}</div>
               <div className="metric-subtext">{metrics.managedApps} managed via WinGet</div>
@@ -86,7 +90,9 @@ export const Overview: React.FC = () => {
                 <span className="metric-card-title" style={{ color: 'var(--warning)' }}>
                   Updates Available
                 </span>
-                <span aria-hidden="true">⚡</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ color: 'var(--warning)' }}>
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                </svg>
               </div>
               <div className="metric-value">{metrics.pendingUpdatesCount}</div>
               <div className="metric-subtext">Explicit approval required</div>
@@ -95,7 +101,11 @@ export const Overview: React.FC = () => {
             <div className="metric-card" data-testid="metric-unsupported">
               <div className="metric-card-header">
                 <span className="metric-card-title">Unsupported</span>
-                <span aria-hidden="true">⚠️</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
               </div>
               <div className="metric-value">{metrics.unsupportedApps}</div>
               <div className="metric-subtext">Manual vendor installers</div>
@@ -104,7 +114,10 @@ export const Overview: React.FC = () => {
             <div className="metric-card" data-testid="metric-last-scan">
               <div className="metric-card-header">
                 <span className="metric-card-title">Last Scan</span>
-                <span aria-hidden="true">🕒</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
               </div>
               <div className="metric-value" style={{ fontSize: '20px' }}>
                 {metrics.lastScanAt ? 'Recent' : 'Never'}
@@ -196,7 +209,21 @@ export const Overview: React.FC = () => {
                   {metrics.recentActivity.slice(0, 6).map(act => (
                     <div key={act.id} className="activity-feed-item">
                       <div className="activity-item-icon" aria-hidden="true">
-                        {act.eventType === 'UPDATE' ? '🚀' : act.eventType === 'SCAN' ? '🔍' : '📝'}
+                        {act.eventType === 'UPDATE' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                          </svg>
+                        ) : act.eventType === 'SCAN' ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
+                        ) : (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                          </svg>
+                        )}
                       </div>
                       <div className="activity-item-content">
                         <span className="activity-item-title">{act.title}</span>

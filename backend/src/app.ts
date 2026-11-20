@@ -34,13 +34,30 @@ app.use(express.json());
 
 // Auth & Session endpoints (seamless auto-login in dev)
 app.get('/api/me', async (_req: Request, res: Response) => {
-  const token = signToken({ sub: '11111111-1111-1111-1111-111111111111', email: 'dinusha@example.com' });
+  const userId = '11111111-1111-1111-1111-111111111111';
+  const email = 'dinusha@example.com';
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email,
+        role: 'USER',
+        passwordHash: 'dummy_dev_hash',
+      },
+    });
+  } catch {
+    // Graceful fallback for mock tests
+  }
+
+  const token = signToken({ sub: userId, email });
   res.status(200).json({
     success: true,
     data: {
       user: {
-        id: '11111111-1111-1111-1111-111111111111',
-        email: 'dinusha@example.com',
+        id: userId,
+        email,
         name: 'Dinusha',
         role: 'USER',
       },
@@ -49,14 +66,30 @@ app.get('/api/me', async (_req: Request, res: Response) => {
   });
 });
 
-app.post('/api/auth/login', (req: Request, res: Response) => {
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  const userId = '11111111-1111-1111-1111-111111111111';
   const email = (req.body?.email as string) || 'dinusha@example.com';
-  const token = signToken({ sub: '11111111-1111-1111-1111-111111111111', email });
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email,
+        role: 'USER',
+        passwordHash: 'dummy_dev_hash',
+      },
+    });
+  } catch {
+    // Graceful fallback
+  }
+
+  const token = signToken({ sub: userId, email });
   res.status(200).json({
     success: true,
     data: {
       user: {
-        id: '11111111-1111-1111-1111-111111111111',
+        id: userId,
         email,
         name: 'Dinusha',
         role: 'USER',
