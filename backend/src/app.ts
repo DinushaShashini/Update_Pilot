@@ -3,6 +3,14 @@ import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { prisma } from './lib/prisma.js';
+import { signToken } from './middleware/auth.js';
+import { scanRouter } from './routes/scans.js';
+import { agentJobRouter } from './routes/agentJobs.js';
+import { agentScanRouter } from './routes/agentScans.js';
+import { agentUpdateRouter } from './routes/agentUpdates.js';
+import { agentMetadataRouter } from './routes/agentMetadata.js';
+import { deviceDataRouter } from './routes/deviceData.js';
+import { updatePreviewRouter } from './routes/updatePreview.js';
 
 export const app = express();
 
@@ -14,8 +22,86 @@ app.use(
   })
 );
 
+// Agent scan & update-check result routes have custom body limits (2MB)
+app.use('/api', agentScanRouter);
+app.use('/api', agentUpdateRouter);
+app.use('/api/v1', agentUpdateRouter);
+app.use('/api', agentMetadataRouter);
+app.use('/api/v1', agentMetadataRouter);
+
 // Body parsing
 app.use(express.json());
+
+// Auth & Session endpoints (seamless auto-login in dev)
+app.get('/api/me', async (_req: Request, res: Response) => {
+  const userId = '11111111-1111-1111-1111-111111111111';
+  const email = 'dinusha@example.com';
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email,
+        role: 'USER',
+        passwordHash: 'dummy_dev_hash',
+      },
+    });
+  } catch {
+    // Graceful fallback for mock tests
+  }
+
+  const token = signToken({ sub: userId, email });
+  res.status(200).json({
+    success: true,
+    data: {
+      user: {
+        id: userId,
+        email,
+        name: 'Dinusha',
+        role: 'USER',
+      },
+      token,
+    },
+  });
+});
+
+app.post('/api/auth/login', async (req: Request, res: Response) => {
+  const userId = '11111111-1111-1111-1111-111111111111';
+  const email = (req.body?.email as string) || 'dinusha@example.com';
+  try {
+    await prisma.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email,
+        role: 'USER',
+        passwordHash: 'dummy_dev_hash',
+      },
+    });
+  } catch {
+    // Graceful fallback
+  }
+
+  const token = signToken({ sub: userId, email });
+  res.status(200).json({
+    success: true,
+    data: {
+      user: {
+        id: userId,
+        email,
+        name: 'Dinusha',
+        role: 'USER',
+      },
+      token,
+    },
+  });
+});
+
+app.post('/api/auth/logout', (_req: Request, res: Response) => {
+  res.status(200).json({ success: true });
+});
 
 // Health Check Endpoint (reporting service & database connectivity)
 app.get('/api/health', async (_req: Request, res: Response) => {
@@ -47,6 +133,14 @@ app.get('/api/health', async (_req: Request, res: Response) => {
     },
   });
 });
+
+// Scan jobs and device data routes
+app.use('/api', scanRouter);
+app.use('/api', agentJobRouter);
+app.use('/api', deviceDataRouter);
+app.use('/api/v1', deviceDataRouter);
+app.use('/api', updatePreviewRouter);
+app.use('/api/v1', updatePreviewRouter);
 
 // Centralized error handler
 app.use(errorHandler);

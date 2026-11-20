@@ -13,12 +13,173 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique @db.VarChar(255)
+  passwordHash String        @map("password_hash") @db.VarChar(255)
+  role         Role          @default(USER)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  devices      Device[]
+  scanJobs     ScanJob[]
+  auditEvents  AuditEvent[]
+  updatePreviews UpdatePreview[]
 
   @@map("users")
 }
+
+model Device {
+  id           String        @id @default(uuid()) @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  name         String        @db.VarChar(100)
+  hostname     String        @db.VarChar(100)
+  osVersion    String        @map("os_version") @db.VarChar(100)
+  agentVersion String        @map("agent_version") @db.VarChar(30)
+  status       String        @default("OFFLINE") @db.VarChar(30)
+  lastSeenAt   DateTime?     @map("last_seen_at") @db.Timestamptz(6)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  credential   AgentCredential?
+  scanJobs     ScanJob[]
+  auditEvents  AuditEvent[]
+  applications Application[]
+  updatePreviews UpdatePreview[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model AgentCredential {
+  id               String    @id @default(uuid()) @db.Uuid
+  deviceId         String    @unique @map("device_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash") @db.VarChar(128)
+  pairingCodeHash  String?   @map("pairing_code_hash") @db.VarChar(128)
+  pairingExpiresAt DateTime? @map("pairing_expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  device           Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@map("agent_credentials")
+}
+
+model ScanJob {
+  id                String    @id @default(uuid()) @db.Uuid
+  deviceId          String    @map("device_id") @db.Uuid
+  requestedByUserId String?   @map("requested_by_user_id") @db.Uuid
+  type              String    @default("scan_inventory") @db.VarChar(50)
+  status            String    @default("queued") @db.VarChar(30)
+  progressPercent   Int       @default(0) @map("progress_percent")
+  progressStep      String?   @map("progress_step") @db.VarChar(100)
+  progressMessage   String?   @map("progress_message") @db.VarChar(256)
+  skippedSteps      Json?     @default("[]") @map("skipped_steps")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt         DateTime? @map("started_at") @db.Timestamptz(6)
+  finishedAt        DateTime? @map("finished_at") @db.Timestamptz(6)
+  errorCode         Int?      @map("error_code")
+  errorMessage      String?   @map("error_message") @db.Text
+  appCount          Int       @default(0) @map("app_count")
+  matchedCount      Int       @default(0) @map("matched_count")
+  ambiguousCount    Int       @default(0) @map("ambiguous_count")
+  unsupportedCount  Int       @default(0) @map("unsupported_count")
+
+  device            Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  requestedByUser   User?     @relation(fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, status])
+  @@map("scan_jobs")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  deviceId   String?  @map("device_id") @db.Uuid
+  eventType  String   @map("event_type") @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(100)
+  entityId   String?  @map("entity_id") @db.Uuid
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device     Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@map("audit_events")
+}
+
+model Application {
+  id               String   @id @default(uuid()) @db.Uuid
+  deviceId         String   @map("device_id") @db.Uuid
+  packageId        String?  @map("package_id") @db.VarChar(256)
+  name             String   @db.VarChar(256)
+  installedVersion String    @map("installed_version") @db.VarChar(128)
+  availableVersion String?   @map("available_version") @db.VarChar(128)
+  updateStatus     String    @default("not_checked") @map("update_status") @db.VarChar(30)
+  updateCheckedAt  DateTime? @map("update_checked_at") @db.Timestamptz(6)
+  publisher        String?   @db.VarChar(256)
+  source           String?  @db.VarChar(50)
+  isManaged        Boolean   @default(false) @map("is_managed")
+  isInstalled      Boolean   @default(true) @map("is_installed")
+  matchStatus      String    @default("pending") @map("match_status") @db.VarChar(50)
+  matchReason      String?   @map("match_reason") @db.VarChar(100)
+  matchMethod      String    @default("none") @map("match_method") @db.VarChar(50)
+  matchedPackageId String?   @map("matched_package_id") @db.VarChar(256)
+  matchConfidence  Float?    @map("match_confidence")
+  matchedAt        DateTime? @map("matched_at") @db.Timestamptz(6)
+  candidates       Json?     @default("[]")
+  lastScannedAt    DateTime  @default(now()) @map("last_scanned_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  device           Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  updatePreviews   UpdatePreview[]
+
+  @@index([deviceId, name])
+  @@index([deviceId, matchStatus])
+  @@map("applications")
+}
+
+model PackageMetadata {
+  id                  String   @id @default(uuid()) @db.Uuid
+  packageId           String   @map("package_id") @db.VarChar(256)
+  version             String   @db.VarChar(128)
+  publisher           String?  @db.VarChar(256)
+  homepageUrl         String?  @map("homepage_url") @db.VarChar(2048)
+  releaseNotesUrl     String?  @map("release_notes_url") @db.VarChar(2048)
+  releaseNotesSummary String?  @map("release_notes_summary") @db.Text
+  fetchedAt           DateTime @default(now()) @map("fetched_at") @db.Timestamptz(6)
+  expiresAt           DateTime @map("expires_at") @db.Timestamptz(6)
+  fetchStatus         String   @default("success") @map("fetch_status") @db.VarChar(50)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([packageId, version])
+  @@index([packageId])
+  @@index([expiresAt])
+  @@map("package_metadata")
+}
+
+model UpdatePreview {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  deviceId         String      @map("device_id") @db.Uuid
+  applicationId    String      @map("application_id") @db.Uuid
+  packageId        String      @map("package_id") @db.VarChar(256)
+  installedVersion String      @map("installed_version") @db.VarChar(128)
+  targetVersion    String      @map("target_version") @db.VarChar(128)
+  source           String      @default("winget") @db.VarChar(50)
+  tokenHash        String      @map("token_hash") @db.VarChar(128)
+  expiresAt        DateTime    @map("expires_at") @db.Timestamptz(6)
+  usedAt           DateTime?   @map("used_at") @db.Timestamptz(6)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device           Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  application      Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deviceId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("update_previews")
+}
+
