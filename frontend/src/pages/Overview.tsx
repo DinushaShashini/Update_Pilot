@@ -72,7 +72,7 @@ export const Overview: React.FC = () => {
         <>
           {/* 5 Metrics Cards Grid */}
           <section className="metrics-grid" aria-label="Key Performance Metrics">
-            <div className="metric-card" data-testid="metric-total-apps">
+            <Link to="/applications" className="metric-card" data-testid="metric-total-apps">
               <div className="metric-card-header">
                 <span className="metric-card-title">Total Apps</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
@@ -83,9 +83,9 @@ export const Overview: React.FC = () => {
               </div>
               <div className="metric-value">{metrics.totalApps}</div>
               <div className="metric-subtext">{metrics.managedApps} managed via WinGet</div>
-            </div>
+            </Link>
 
-            <div className="metric-card accent-updates" data-testid="metric-updates">
+            <Link to="/updates" className="metric-card accent-updates" data-testid="metric-updates">
               <div className="metric-card-header">
                 <span className="metric-card-title" style={{ color: 'var(--warning)' }}>
                   Updates Available
@@ -96,9 +96,9 @@ export const Overview: React.FC = () => {
               </div>
               <div className="metric-value">{metrics.pendingUpdatesCount}</div>
               <div className="metric-subtext">Explicit approval required</div>
-            </div>
+            </Link>
 
-            <div className="metric-card" data-testid="metric-unsupported">
+            <Link to="/applications?matchStatus=unsupported" className="metric-card" data-testid="metric-unsupported">
               <div className="metric-card-header">
                 <span className="metric-card-title">Unsupported</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
@@ -109,9 +109,9 @@ export const Overview: React.FC = () => {
               </div>
               <div className="metric-value">{metrics.unsupportedApps}</div>
               <div className="metric-subtext">Manual vendor installers</div>
-            </div>
+            </Link>
 
-            <div className="metric-card" data-testid="metric-last-scan">
+            <Link to="/history" className="metric-card" data-testid="metric-last-scan">
               <div className="metric-card-header">
                 <span className="metric-card-title">Last Scan</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
@@ -123,9 +123,9 @@ export const Overview: React.FC = () => {
                 {metrics.lastScanAt ? 'Recent' : 'Never'}
               </div>
               <div className="metric-subtext">Status: {metrics.lastScanStatus}</div>
-            </div>
+            </Link>
 
-            <div className="metric-card" data-testid="metric-agent-status">
+            <Link to="/settings" className="metric-card" data-testid="metric-agent-status">
               <div className="metric-card-header">
                 <span className="metric-card-title">Agent Status</span>
                 <span
@@ -141,7 +141,7 @@ export const Overview: React.FC = () => {
               <div className="metric-subtext">
                 {isOnline ? 'Live heartbeat connected' : 'Agent offline or disconnected'}
               </div>
-            </div>
+            </Link>
           </section>
 
           {/* Two-Column Workspaces */}

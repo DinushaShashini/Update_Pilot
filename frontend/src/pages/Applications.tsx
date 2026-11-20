@@ -129,16 +129,41 @@ export function getMatchDisplayInfo(app: Application): MatchDisplayInfo {
   };
 }
 
+function getInitialParams(): { status: string; matchStatus: 'all' | MatchStatus } {
+  if (typeof window !== 'undefined' && window.location && window.location.search) {
+    const params = new URLSearchParams(window.location.search);
+    const m = params.get('matchStatus');
+    const validMatches: Array<MatchStatus | 'all'> = ['all', 'matched', 'ambiguous', 'unsupported', 'pending'];
+    const matchStatus = validMatches.includes(m as MatchStatus) ? (m as MatchStatus) : 'all';
+    return {
+      status: params.get('status') || 'all',
+      matchStatus,
+    };
+  }
+  return { status: 'all', matchStatus: 'all' };
+}
+
 export const Applications: React.FC = () => {
+  const initial = useMemo(() => getInitialParams(), []);
   const [applications, setApplications] = useState<Application[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [matchStatusFilter, setMatchStatusFilter] = useState<'all' | MatchStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(initial.status);
+  const [matchStatusFilter, setMatchStatusFilter] = useState<'all' | MatchStatus>(initial.matchStatus);
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = getInitialParams();
+      setStatusFilter(p.status);
+      setMatchStatusFilter(p.matchStatus);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Keyboard-reachable tooltip/popover state
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
