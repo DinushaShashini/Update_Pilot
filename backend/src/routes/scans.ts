@@ -5,6 +5,29 @@ import { determinePackagesNeedingFetch } from '../metadata/cache.js';
 
 export const scanRouter = Router();
 
+async function resolveDevice(deviceId: string | undefined | null, userId: string) {
+  if (!deviceId || deviceId === 'default') {
+    return prisma.device.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  try {
+    const device = await prisma.device.findUnique({ where: { id: deviceId } });
+    if (device && device.userId === userId) {
+      return device;
+    }
+    return null;
+  } catch (err: unknown) {
+    const msg = (err as Error)?.message || '';
+    if (msg.includes('UUID') || msg.includes('Inconsistent column data')) {
+      return null;
+    }
+    throw err;
+  }
+}
+
 const lastRefreshByDevice = new Map<string, number>();
 const METADATA_REFRESH_COOLDOWN_MS = 10_000;
 
@@ -21,11 +44,9 @@ async function createDeviceJob(
 ): Promise<void> {
   try {
     // 1. Verify device exists and belongs to the authenticated user
-    const device = await prisma.device.findUnique({
-      where: { id: deviceId },
-    });
+    const device = await resolveDevice(deviceId, userId);
 
-    if (!device || device.userId !== userId) {
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -99,7 +120,7 @@ async function createDeviceJob(
 // POST /api/devices/:id/scans & POST /api/scans - Queue a new scan job for a device
 scanRouter.post(['/devices/:id/scans', '/v1/devices/:id/scans', '/scans', '/v1/scans'], requireAuth, async (req: Request, res: Response): Promise<void> => {
   let targetDeviceId = req.params.id ? String(req.params.id) : (req.body?.deviceId ? String(req.body.deviceId) : null);
-  if (!targetDeviceId) {
+  if (!targetDeviceId || targetDeviceId === 'default') {
     const firstDevice = await prisma.device.findFirst({
       where: { userId: req.user!.id },
       orderBy: { createdAt: 'desc' },
@@ -120,7 +141,7 @@ scanRouter.post(['/devices/:id/scans', '/v1/devices/:id/scans', '/scans', '/v1/s
 // POST /api/devices/:id/update-checks & POST /api/update-checks - Queue a new check_updates job for a device
 scanRouter.post(['/devices/:id/update-checks', '/v1/devices/:id/update-checks', '/update-checks', '/v1/update-checks'], requireAuth, async (req: Request, res: Response): Promise<void> => {
   let targetDeviceId = req.params.id ? String(req.params.id) : (req.body?.deviceId ? String(req.body.deviceId) : null);
-  if (!targetDeviceId) {
+  if (!targetDeviceId || targetDeviceId === 'default') {
     const firstDevice = await prisma.device.findFirst({
       where: { userId: req.user!.id },
       orderBy: { createdAt: 'desc' },
@@ -144,8 +165,8 @@ scanRouter.get('/devices/:id/update-checks/latest', requireAuth, async (req: Req
   const user = req.user!;
 
   try {
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -182,8 +203,8 @@ scanRouter.get('/devices/:id/update-checks/:jobId', requireAuth, async (req: Req
   const user = req.user!;
 
   try {
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -218,8 +239,8 @@ scanRouter.post('/devices/:id/metadata-jobs', requireAuth, async (req: Request, 
   const user = req.user!;
 
   try {
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -314,13 +335,23 @@ scanRouter.post('/devices/:id/metadata-jobs', requireAuth, async (req: Request, 
 });
 
 // POST /api/devices/:id/metadata-refresh - Manual refresh of package metadata (owner only, rate-limited, audited)
-scanRouter.post('/devices/:id/metadata-refresh', requireAuth, async (req: Request, res: Response): Promise<void> => {
+scanRouter.post(['/devices/:id/metadata-refresh', '/v1/devices/:id/metadata-refresh'], requireAuth, async (req: Request, res: Response): Promise<void> => {
   const deviceId = String(req.params.id);
   const user = req.user!;
 
   try {
+    // 2. Ownership & existence check
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
+      res.status(404).json({
+        success: false,
+        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
+      });
+      return;
+    }
+
     // 1. Rate limiting check (cooldown per device)
-    const lastRefresh = lastRefreshByDevice.get(deviceId) || 0;
+    const lastRefresh = lastRefreshByDevice.get(device.id) || 0;
     const now = Date.now();
     if (now - lastRefresh < METADATA_REFRESH_COOLDOWN_MS) {
       const retryAfterSec = Math.max(1, Math.ceil((METADATA_REFRESH_COOLDOWN_MS - (now - lastRefresh)) / 1000));
@@ -331,16 +362,6 @@ scanRouter.post('/devices/:id/metadata-refresh', requireAuth, async (req: Reques
           code: 'RATE_LIMITED',
           message: `Metadata refresh is rate limited. Please wait ${retryAfterSec}s before refreshing again.`,
         },
-      });
-      return;
-    }
-
-    // 2. Ownership & existence check
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
-      res.status(404).json({
-        success: false,
-        error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
       });
       return;
     }
@@ -461,8 +482,8 @@ scanRouter.get('/devices/:id/metadata-jobs/latest', requireAuth, async (req: Req
   const user = req.user!;
 
   try {
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
@@ -499,8 +520,8 @@ scanRouter.get('/devices/:id/metadata-jobs/:jobId', requireAuth, async (req: Req
   const user = req.user!;
 
   try {
-    const device = await prisma.device.findUnique({ where: { id: deviceId } });
-    if (!device || device.userId !== user.id) {
+    const device = await resolveDevice(deviceId, user.id);
+    if (!device) {
       res.status(404).json({
         success: false,
         error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found' },
